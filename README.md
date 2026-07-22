@@ -31,7 +31,7 @@ Early work will define:
 
 ## Relationship to Implementations
 
-[Webspace Browser](https://github.com/Let-s-Inspire/OpenMetaverse) is the
+[Webspace Browser](https://github.com/Let-s-Inspire/webspace-browser) is the
 initial reference implementation. Easy Multiplayer is expected to be a
 first-class networking provider, but neither product is required by the
 standard.
@@ -54,4 +54,3 @@ concrete use cases are welcome through GitHub issues. See
 Specification text is intended to be available under Creative Commons
 Attribution 4.0. Schemas, examples, and conformance code are intended to be
 available under Apache License 2.0. See [LICENSE.md](LICENSE.md).
-
