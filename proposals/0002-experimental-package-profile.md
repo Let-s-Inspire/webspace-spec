@@ -352,6 +352,10 @@ must also list the corresponding feature in `compatibility.requires`.
 dependency failure, and authority loss. The only allowed choices are explicit
 reject, degrade, offline, retry, or exit modes.
 
+`failure` and its members are optional. When `failure.optionalCapabilityDenied`
+is not declared, its default is `degrade` (the runtime lifecycle proposal 0006
+relies on this default so an undeclared policy is always well-defined).
+
 Failure declarations do not require a Browser to continue running unsafe or
 invalid code. Browser security termination always takes precedence.
 

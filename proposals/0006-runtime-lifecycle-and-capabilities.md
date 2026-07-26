@@ -164,7 +164,7 @@ implement any.
 | ready | active | enter (activation) |
 | active | paused | pause |
 | paused | active | resume |
-| loading, ready, active, paused | failed | error or timeout |
+| loading, ready, active, paused | failed | error, timeout, or a revocation the package cannot tolerate (required capability, or optional with policy `reject`) |
 | any | unloading | teardown requested (navigation, replacement, failure cleanup) |
 | unloading | unloaded | cleanup complete |
 | failed | unloading | cleanup after failure |
@@ -232,19 +232,28 @@ This realizes 0001 section 8 at runtime.
   - A **required** capability that is denied (including a refused required consent) ends
     `negotiating` in `failed`. The instance never loads or enters, and the browser surfaces a
     clear, recoverable failure (0001 section 20).
-  - An **optional** capability that is denied is resolved by the package's single declared
-    `failure.optionalCapabilityDenied` policy (0002), which selects the transition:
-    - `degrade`: `negotiating -> loading`; the instance runs without the capability.
+  - An **optional** capability that is denied is resolved by the package's
+    `failure.optionalCapabilityDenied` policy (0002). That policy **defaults to `degrade`** when
+    the package declares none, so a missing policy is always well-defined. It selects the
+    transition:
+    - `degrade` (the default): `negotiating -> loading`; the instance runs without the capability.
     - `reject`: `negotiating -> failed`, with a clear, recoverable reason (the package declined
       to run without the optional capability).
 
     One control governs the choice, not two, and the runtime never forces entry.
 - **Unknown capabilities fail closed.** An unknown required capability prevents entry. An
   unknown optional capability is ignored (0001 section 20).
-- **Revocation.** The runtime MAY revoke a granted capability at any time. The package must
-  tolerate revocation: the operation the capability gated stops promptly, and the package
-  degrades per its `failure.optionalCapabilityDenied` policy or, for a required capability, is
-  torn down. Input and device capabilities must stop promptly on revocation (0001 section 9).
+- **Revocation.** The runtime MAY revoke a granted capability at any time, and the gated
+  operation MUST stop promptly (input and device capabilities especially, 0001 section 9). The
+  outcome then mirrors denial, using the same single `failure.optionalCapabilityDenied` control
+  (default `degrade`):
+  - **Optional revoked, policy `degrade` (the default):** the instance continues without the
+    capability.
+  - **Optional revoked, policy `reject`:** the instance transitions to `failed` and is torn down.
+  - **Required revoked:** the instance transitions to `failed` and is torn down.
+
+  A revocation the package cannot tolerate (a required capability, or an optional capability with
+  policy `reject`) is a failure cause in the transition table (section 8).
 - **Enforcement, not declaration.** A granted capability gates real runtime operations. A
   package that was denied a capability cannot perform the gated operation. Declaration alone
   never confers the power (0001 effective-power rule).
