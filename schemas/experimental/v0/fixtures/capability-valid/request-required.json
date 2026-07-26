@@ -1,0 +1,12 @@
+{
+  "kind": "capability.request",
+  "package": "com.example.plaza",
+  "capabilities": [
+    {
+      "name": "avatar-position-authority",
+      "required": true,
+      "reason": "The world drives synchronized avatar positions.",
+      "scope": { "world": "self" }
+    }
+  ]
+}

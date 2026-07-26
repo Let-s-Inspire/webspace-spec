@@ -13,3 +13,4 @@ Current proposals:
 - [0003: Identity Provider Interface](0003-identity-provider-interface.md)
 - [0004: Embedding, Navigation, and Session Handover](0004-embedding-navigation-handoff.md)
 - [0005: Package Sources and Origin Bridge Protocol](0005-package-sources-and-origin-bridge.md)
+- [0006: Runtime Lifecycle and Capability API](0006-runtime-lifecycle-and-capabilities.md)

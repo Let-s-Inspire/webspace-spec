@@ -1,0 +1,12 @@
+{
+  "kind": "capability.request",
+  "package": "com.example.plaza",
+  "capabilities": [
+    {
+      "name": "open-ended-movement",
+      "required": true,
+      "reason": "Undeclared extra field should fail closed.",
+      "grant": true
+    }
+  ]
+}

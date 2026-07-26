@@ -1,0 +1,12 @@
+{
+  "kind": "capability.resolution",
+  "package": "com.example.plaza",
+  "results": [
+    {
+      "name": "webspace.input.pointer-lock",
+      "decision": "denied",
+      "reason": "User declined pointer lock.",
+      "fallbackApplied": true
+    }
+  ]
+}

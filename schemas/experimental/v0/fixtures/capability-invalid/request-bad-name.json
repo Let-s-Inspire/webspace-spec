@@ -1,0 +1,11 @@
+{
+  "kind": "capability.request",
+  "package": "com.example.plaza",
+  "capabilities": [
+    {
+      "name": "Grabbable-Input-Routing",
+      "required": true,
+      "reason": "Capability names are lower-case dotted or dashed identifiers."
+    }
+  ]
+}

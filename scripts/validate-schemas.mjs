@@ -18,6 +18,7 @@ const schemaFiles = [
   "world.schema.json",
   "object.schema.json",
   "origin-bridge-message.schema.json",
+  "capability-negotiation.schema.json",
 ];
 const schemas = await Promise.all(
   schemaFiles.map((file) => readJson(path.join(schemaDir, file))),
@@ -42,6 +43,9 @@ const validators = {
   ),
   bridge: ajv.getSchema(
     "https://webspacebrowser.com/schemas/experimental/v0/origin-bridge-message.schema.json",
+  ),
+  capability: ajv.getSchema(
+    "https://webspacebrowser.com/schemas/experimental/v0/capability-negotiation.schema.json",
   ),
 };
 
@@ -196,6 +200,30 @@ for (const category of ["bridge-valid", "bridge-invalid"]) {
       }
     } else {
       console.error("  invalid bridge fixture unexpectedly validated");
+    }
+  }
+}
+
+for (const category of ["capability-valid", "capability-invalid"]) {
+  for (const file of await fixtureFiles(category)) {
+    const message = await readJson(file);
+    const valid = validators.capability(message);
+    const expectedValid = category === "capability-valid";
+    const passed = expectedValid ? valid : !valid;
+    const label = path.relative(root, file);
+    if (passed) {
+      console.log(`PASS ${label}`);
+      continue;
+    }
+
+    failures += 1;
+    console.error(`FAIL ${label}`);
+    if (expectedValid) {
+      for (const error of validators.capability.errors ?? []) {
+        console.error(`  ${error.instancePath || "/"} ${error.message}`);
+      }
+    } else {
+      console.error("  invalid capability fixture unexpectedly validated");
     }
   }
 }

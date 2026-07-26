@@ -1,0 +1,10 @@
+{
+  "kind": "capability.resolution",
+  "package": "com.example.plaza",
+  "results": [
+    {
+      "name": "avatar-position-authority",
+      "decision": "maybe"
+    }
+  ]
+}

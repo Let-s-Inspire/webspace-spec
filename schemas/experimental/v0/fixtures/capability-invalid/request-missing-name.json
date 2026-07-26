@@ -1,0 +1,10 @@
+{
+  "kind": "capability.request",
+  "package": "com.example.plaza",
+  "capabilities": [
+    {
+      "required": true,
+      "reason": "Missing the capability name."
+    }
+  ]
+}

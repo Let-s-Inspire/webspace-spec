@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webspacebrowser.com/schemas/experimental/v0/capability-negotiation.schema.json",
+  "title": "Webspace experimental capability negotiation message v0",
+  "oneOf": [
+    { "$ref": "#/$defs/request" },
+    { "$ref": "#/$defs/resolution" }
+  ],
+  "$defs": {
+    "featureName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$",
+      "maxLength": 255
+    },
+    "packageRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "scope": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$"
+      }
+    },
+    "requestItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "required", "reason"],
+      "properties": {
+        "name": { "$ref": "#/$defs/featureName" },
+        "required": { "type": "boolean" },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "scope": { "$ref": "#/$defs/scope" },
+        "durationSeconds": { "type": "integer", "minimum": 0 },
+        "delegate": { "type": "boolean" },
+        "fallback": {
+          "type": "string",
+          "enum": ["reject", "degrade", "disable", "retry"]
+        }
+      }
+    },
+    "resultItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "decision"],
+      "properties": {
+        "name": { "$ref": "#/$defs/featureName" },
+        "decision": {
+          "type": "string",
+          "enum": ["granted", "denied"]
+        },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "scope": { "$ref": "#/$defs/scope" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "revocable": { "type": "boolean" },
+        "fallbackApplied": { "type": "boolean" }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "package", "capabilities"],
+      "properties": {
+        "kind": { "const": "capability.request" },
+        "package": { "$ref": "#/$defs/packageRef" },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/requestItem" }
+        }
+      }
+    },
+    "resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "package", "results"],
+      "properties": {
+        "kind": { "const": "capability.resolution" },
+        "package": { "$ref": "#/$defs/packageRef" },
+        "results": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/resultItem" }
+        }
+      }
+    }
+  }
+}
