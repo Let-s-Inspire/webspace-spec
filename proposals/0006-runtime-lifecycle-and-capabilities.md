@@ -88,29 +88,28 @@ Non-goals:
 ## 6. Lifecycle states
 
 ```text
-                 (0002/0005 handoff: validated, executable)
-                                 |
-                                 v
-   +-----------+     +---------+     +--------+     +---------+
-   | acquired  | --> | loading | --> | ready  | --> | active  |
-   +-----------+     +---------+     +--------+     +----+----+
-                          |              |            |   ^
-                          |              |     pause  |   | resume
-                          |              |            v   |
-                          |              |          +---------+
-                          |              |          | paused  |
-                          |              |          +----+----+
-                          |              |               |
-        (any state) ------+--------------+---------------+---> failed
-                          |              |               |
-                          +--------------+---------------+---> unloading --> unloaded
+             (0002/0005 handoff: validated, executable)
+                             |
+                             v
+  acquired --> negotiating --> loading --> ready --> active
+                                                      ^   |
+                                                resume |   | pause
+                                                       |   v
+                                                     paused
+
+  Any of {negotiating, loading, ready, active, paused} --> failed --> unloading --> unloaded
+  Cancellation before active (navigation, replacement)   --> unloading --> unloaded
 ```
 
 - **acquired**: validated and executable, no code run yet.
-- **loading**: entered only after capability negotiation (section 10) has completed, because the
-  manifest's capability requests are known at acquisition and no untrusted package code may run
-  before its powers are resolved. On entry the runtime imports and instantiates the entry
-  module, runs the `load` callback, and prepares preload-phase modules and declared assets.
+- **negotiating**: the runtime resolves the manifest's capability requests (section 10) before
+  any package code runs. No package code executes in this state. It is bounded by a timeout and
+  can be cancelled, and it fails on a required-capability denial, consent refusal, or timeout
+  (section 9).
+- **loading**: entered only after negotiation succeeds (every required capability granted). No
+  untrusted package code runs before this point. On entry the runtime imports and instantiates
+  the entry module, runs the `load` callback, and prepares preload-phase modules and declared
+  assets.
 - **ready**: the instance has **signalled readiness** to the runtime (section 7) and can
   produce its first frame, but is not yet live/entered. Corresponds to first-frame priming in
   the reference implementation.
@@ -136,6 +135,7 @@ implement any.
 | `resume` | paused -> active | zero or more |
 | `unload` | unloading | at most once |
 
+- The `acquired` and `negotiating` states run no package code and have no callbacks.
 - `error` and `teardown` are runtime concerns, not required package exports. A package MAY
   export an error hook, but the runtime's failure and cleanup behavior does not depend on it.
 - `enter` fires **once**, on the first activation. Re-activation after pause uses `resume`,
@@ -157,12 +157,13 @@ implement any.
 
 | From | To | Cause |
 |---|---|---|
-| acquired | loading | runtime begins execution |
+| acquired | negotiating | runtime begins capability negotiation (section 10) |
+| negotiating | loading | negotiation succeeds (every required capability granted) |
 | loading | ready | load complete, instance emits its readiness signal (section 7) |
 | ready | active | enter (activation) |
 | active | paused | pause |
 | paused | active | resume |
-| loading, ready, active, paused | failed | error or timeout |
+| negotiating, loading, ready, active, paused | failed | error, required-capability denial, consent refusal, or timeout |
 | any | unloading | teardown requested (navigation, replacement, failure cleanup) |
 | unloading | unloaded | cleanup complete |
 | failed | unloading | cleanup after failure |
@@ -178,13 +179,13 @@ exactly once.
 
 ## 9. Cancellation, timeout, failure, cleanup, idempotency
 
-- **Bounded phases.** `loading` and the `ready` transition are bounded by a browser-supplied
-  timeout. Exceeding it transitions the instance to `failed`. (The reference implementation
-  today has no per-load timeout and relies on a splash fallback. This proposal requires an
-  explicit bound.)
-- **Cancellation.** Navigating away or replacing an instance before it reaches `active` must
-  transition it to `unloading` and abort pending work. Cancellation is not an error, and it
-  must not leave a live boundary.
+- **Bounded phases.** `negotiating`, `loading`, and the `ready` transition are each bounded by a
+  browser-supplied timeout. Exceeding it transitions the instance to `failed`. (The reference
+  implementation today has no per-load timeout and relies on a splash fallback. This proposal
+  requires an explicit bound.)
+- **Cancellation.** Navigating away or replacing an instance before it reaches `active`
+  (including during `negotiating` or `loading`) must transition it to `unloading` and abort
+  pending work. Cancellation is not an error, and it must not leave a live boundary.
 - **Failure.** A thrown or timed-out `load`, `ready`, `enter`, `pause`, or `resume` callback, an
   isolation-boundary crash, or a validation failure surfaced during execution transitions to
   `failed`, then teardown. An error during `unload` or teardown is the exception: it is reported
@@ -208,25 +209,29 @@ This realizes 0001 section 8 at runtime.
 
 - **Request (one canonical shape).** Capabilities are declared in the manifest using the single
   canonical capability shape defined by 0002 (`package.schema.json#/$defs/capability`): a dotted
-  `name`, `required` flag, human `reason`, `scope`, and optionally `durationSeconds` and an
-  optional-denial `fallback` (`degrade` or `reject`, consistent with 0002's
-  `failure.optionalCapabilityDenied`). This proposal references that shape rather than
-  duplicating it. Delegating a capability to child objects is deferred (0001 section 8.4, a
-  future delegation mechanism) and is not part of the v0 request. A runtime dynamic-request path
-  MAY exist but is not required for the launch profile.
-- **Negotiation happens before any package code runs.** On the `acquired` to `loading`
-  transition, before the entry module is imported or executed, the runtime resolves each
-  requested capability to **granted** or **denied** using the 0001 effective-power intersection
-  (package request AND browser/user grant AND world admission AND authority authorization when
-  required AND runtime limits). The requests are static and known at acquisition, so resolution
-  never requires running untrusted code first. Consent presentation is a browser responsibility.
+  `name`, `required` flag, human `reason`, `scope`, and optionally `durationSeconds`. This
+  proposal references that shape rather than duplicating it. There is **no per-capability
+  fallback field**: the response to an optional-capability denial is the single package-level
+  `failure.optionalCapabilityDenied` policy (0002), so exactly one control governs it with no
+  precedence ambiguity. Delegating a capability to child objects is deferred (0001 section 8.4,
+  a future delegation mechanism) and is not part of the v0 request. A runtime dynamic-request
+  path MAY exist but is not required for the launch profile.
+- **Negotiation happens in the `negotiating` state, before any package code runs.** Before the
+  entry module is imported or executed, the runtime resolves each requested capability to
+  **granted** or **denied** using the 0001 effective-power intersection (package request AND
+  browser/user grant AND world admission AND authority authorization when required AND runtime
+  limits). The requests are static and known at acquisition, so resolution never requires
+  running untrusted code first. Consent presentation is a browser responsibility. A required
+  denial, a consent refusal, or a negotiation timeout ends `negotiating` in `failed` (section 8).
 - **Grant.** A grant is least-privilege, scoped to the package identity and version-compatible
   context, bounded by target/operation/duration, observable in trusted UI, and revocable.
 - **Required vs optional.**
-  - A **required** capability that is denied prevents `enter`. The instance produces a clear,
-    recoverable failure rather than entering with the capability absent.
-  - An **optional** capability that is denied lets the instance proceed using its declared
-    `fallback` behavior. Optional denial never blocks entry.
+  - A **required** capability that is denied ends `negotiating` in `failed`. The instance never
+    loads or enters, and the browser surfaces a clear, recoverable failure (0001 section 20).
+  - An **optional** capability that is denied does not fail negotiation. The instance proceeds
+    per the package's single declared `failure.optionalCapabilityDenied` policy (0002): either
+    `degrade` (continue without the capability) or `reject` (the package elects not to run). The
+    runtime never forces entry, and one control governs the choice, not two.
 - **Unknown capabilities fail closed.** An unknown required capability prevents entry. An
   unknown optional capability is ignored (0001 section 20).
 - **Revocation.** The runtime MAY revoke a granted capability at any time. The package must
@@ -366,7 +371,7 @@ so the spec is not mistaken for current behavior:
 This proposal adds one machine-verifiable schema where it gives real coverage: the capability
 negotiation message (`schemas/experimental/v0/capability-negotiation.schema.json`), covering a
 capability **request** set and a capability **resolution** set (grant/deny with
-required/optional and fallback), with valid and invalid fixtures. The request items reference the
+required/optional handling), with valid and invalid fixtures. The request items reference the
 single canonical capability shape from 0002 (`package.schema.json#/$defs/capability`) rather than
 duplicating it. The lifecycle state machine itself is specified in prose and transition tables
 rather than a schema, because it is control flow, not a data shape. Passing the schema suite does

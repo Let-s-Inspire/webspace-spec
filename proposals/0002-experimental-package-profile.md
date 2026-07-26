@@ -217,9 +217,10 @@ privilege escalation.
 - `required`: whether denial prevents startup;
 - `reason`: user-facing justification;
 - `scope`: capability-specific bounds;
-- `durationSeconds` (optional): the requested grant duration;
-- `fallback` (optional): behavior on optional-capability denial, `degrade` or `reject`,
-  consistent with `failure.optionalCapabilityDenied`.
+- `durationSeconds` (optional): the requested grant duration.
+
+Behavior on optional-capability denial is the package-level `failure.optionalCapabilityDenied`
+policy (`degrade` or `reject`), not a per-capability field, so exactly one control governs it.
 
 This is the single canonical capability request shape. Other proposals (for example the runtime
 capability negotiation in 0006) reference it rather than defining their own.

@@ -6,8 +6,7 @@
       "name": "webspace.input.pointer-lock",
       "required": false,
       "reason": "Mouse-look is smoother with pointer lock.",
-      "durationSeconds": 3600,
-      "fallback": "degrade"
+      "durationSeconds": 3600
     }
   ]
 }
