@@ -4,7 +4,7 @@
   "kind": "world",
   "id": "com.3dsplaza.world",
   "version": "0.1.0",
-  "canonicalUrl": "https://3dsplaza.com/worlds/prod.wsp",
+  "canonicalUrl": "https://3dsplaza.com/",
   "metadata": {
     "name": "3DSPlaza",
     "description": "The 3DSPlaza social Webspace.",
@@ -54,14 +54,6 @@
       "scope": {
         "position": true,
         "orientation": true
-      }
-    },
-    {
-      "name": "webspace.identity.claims",
-      "required": false,
-      "reason": "Recognize registered 3DSPlaza members.",
-      "scope": {
-        "provider": "https://3dsplaza.com/"
       }
     }
   ],
@@ -131,11 +123,16 @@
     "required": true
   },
   "identity": {
-    "allowAnonymous": true,
-    "provider": "https://3dsplaza.com/.well-known/webspace-identity",
-    "requiredClaims": [
-      "com.3dsplaza.account.id",
-      "com.3dsplaza.account.role"
+    "requests": [
+      {
+        "level": "external:com.3dsplaza.account",
+        "reason": "Recognize registered members and authorize member-only features.",
+        "claims": [
+          "com.3dsplaza.account.id",
+          "com.3dsplaza.account.role"
+        ],
+        "providerHint": "https://3dsplaza.com/.well-known/webspace-identity"
+      }
     ]
   },
   "avatarPolicy": {

@@ -455,7 +455,9 @@ origin and receives user approval or applicable remembered policy.
 }
 ```
 
-The Browser identity broker obtains the token under proposal 0003. It must be:
+The Browser brokers the token through the provider seam defined by proposal
+0003. This is a package-delivery authorization credential, not a Webspace
+identity proof. It must be:
 
 - short-lived;
 - audience-bound to the exact package origin;
@@ -490,18 +492,24 @@ A source may respond:
 }
 ```
 
-The Browser verifies that challenge origin equals the source origin, asks for
-user consent, obtains a credential through the broker, sends
-`webspace.bridge.authenticate`, and retries the failed operation.
+The Browser verifies that challenge origin equals the source origin, treats
+the challenge's package and provider fields as untrusted discovery hints, asks
+for user consent, obtains a credential through the broker, sends
+`webspace.bridge.authenticate`, and retries the failed operation. Before the
+manifest is available, a credential must be bound at minimum to the exact
+origin, requested source path, package-read scope, and a short lifetime. Once
+the manifest is validated, its package identity must match the credential's
+expected identity when one was supplied; a mismatch aborts rather than
+falling back.
 
 A direct source may expose the same challenge in a readable HTTPS `401`
 response using provisional media type
 `application/webspace-authentication-required+json`. That response must opt
 into CORS for the Browser origin. When CORS prevents reading the challenge, the
 failure remains transport-unavailable and bridge discovery may proceed.
-Trusted portal/address metadata may also advertise the expected provider and
-scopes, but the source challenge remains authoritative and must match the
-exact package origin.
+Portal/address metadata may also advertise the expected provider and scopes.
+It is still untrusted input unless independently authenticated, and the source
+challenge must match the exact package origin.
 
 World scripts never receive package-download credentials.
 
@@ -546,7 +554,7 @@ withhold content, return stale data, or modify unpinned bytes.
 
 ## 15. Portal and Source Trust Indicators
 
-A portal may declare:
+A portal may declare the following untrusted source hints:
 
 ```json
 {
@@ -562,7 +570,7 @@ The Browser displays the source actually selected, not merely the portal's
 preference.
 
 Integrity is independently pinned only when the expected digest comes from a
-trusted referring world/portal, verified publisher metadata, a user bookmark,
+trusted referring package, verified publisher metadata, a user bookmark,
 or another source outside the destination bytes being checked. A digest
 declared only by the destination's own unverified manifest cannot remove the
 relay warning because a relay could replace both.
@@ -808,8 +816,11 @@ namespace. This proposal only acquires those bytes.
 
 ### Identity
 
-Proposal 0003 brokers origin- and package-scoped credentials. World code never
-receives package-download credentials.
+Proposal 0003 supplies the provider-neutral broker seam used to obtain
+origin- and package-scoped delivery credentials. Those credentials are
+authorization artifacts distinct from identity proofs. World code never
+receives package-download credentials, and neither kind of credential may be
+placed in a proposal 0004 handoff token.
 
 ### P2 lifecycle
 
@@ -819,7 +830,9 @@ integrity, and compatibility checks. P2 cleanup always closes the source.
 ### Embedding and navigation
 
 The hidden bridge is not the visible Webspace embed from proposal 0004. It
-does not render the destination or own navigation identity.
+does not render the destination or own navigation identity. The selected
+transport URL or relay origin never replaces the destination's canonical URL
+in the address bar or history.
 
 ### Native Browser
 

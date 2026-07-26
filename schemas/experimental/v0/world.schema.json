@@ -127,15 +127,47 @@
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["allowAnonymous"],
+      "required": ["requests"],
       "properties": {
-        "allowAnonymous": { "type": "boolean" },
-        "provider": { "$ref": "package.schema.json#/$defs/absoluteHttpsUri" },
-        "requiredClaims": {
+        "requests": {
           "type": "array",
-          "uniqueItems": true,
-          "maxItems": 64,
-          "items": { "$ref": "package.schema.json#/$defs/featureName" }
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["level", "reason"],
+            "properties": {
+              "level": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "anonymous",
+                      "world-pseudonym",
+                      "global"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^external:[a-z0-9](?:[a-z0-9.-]{0,126}[a-z0-9])?$"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "claims": {
+                "type": "array",
+                "uniqueItems": true,
+                "maxItems": 64,
+                "items": { "$ref": "package.schema.json#/$defs/featureName" }
+              },
+              "providerHint": {
+                "$ref": "package.schema.json#/$defs/absoluteHttpsUri"
+              }
+            }
+          }
         }
       }
     },

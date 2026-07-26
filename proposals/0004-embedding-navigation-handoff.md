@@ -92,7 +92,8 @@ Rules:
   load.
 - **No secrets.** The token MUST NOT carry private keys, credentials, or another user's
   data. Identity continuation is a hint that triggers a proper re-authentication (0003),
-  not a transfer of key material.
+  not a transfer of key material. Package-read credentials from proposal 0005 are also
+  forbidden.
 - **Short-lived and single-use.** Cleared on consumption, with a bounded lifetime.
 - **Never blocks navigation.** If continuity cannot be established, the destination still
   loads normally.
@@ -183,5 +184,5 @@ capture/crossfade technique are implementation details for the reference browser
   here and the re-authentication it triggers. Shares the "untrusted handoff data" rule.
 - **0001 / S0:** supplies the controlling origin-transparency, trusted-exit,
   untrusted-handoff, and fail-safe requirements used here.
-- The manifest proposal (pending) should define the canonical-URL and entry semantics this
-  proposal assumes.
+- Proposal 0002 defines the canonical URL as the shareable navigation destination and
+  distinguishes it from the package source URL.

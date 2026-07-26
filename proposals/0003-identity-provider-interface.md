@@ -144,12 +144,15 @@ Notes:
 
 - A `world-pseudonym` is derived so that it is **stable per world** but **unlinkable across
   worlds**. Two worlds cannot collude to determine that two pseudonyms are the same user.
-- The default **world id** is the origin the Webspace package is served from, so the
-  pseudonym is stable whether the world is entered directly or through an embedding host. A
-  package may declare a different identity scope, but only within its own serving origin's
-  authority. Claiming another origin's scope requires that origin to vouch for it (for
-  example a `.well-known` delegation). This prevents one world from harvesting the
-  pseudonyms a user presents to another.
+- The default **world id** is derived from the package's authenticated publisher origin and
+  package ID, so the pseudonym is stable whether the package is acquired directly, through
+  its origin bridge, or through a relay, and whether it is entered directly or through an
+  embedding host. The relay origin, Browser host origin, carrier URL, and transport URL
+  never become identity scope merely because they supplied bytes. A package may declare a
+  different identity scope only within its authenticated publisher origin's authority.
+  Claiming another origin's scope requires that origin to vouch for it (for example a
+  `.well-known` delegation). This prevents one world from harvesting the pseudonyms a user
+  presents to another.
 - Determinism across a user's devices comes from the provider deriving the pseudonym from a
   root the user carries, not from per-device state. How that root is held is provider-defined
   (device keypair, custodial service, wallet).
@@ -243,7 +246,9 @@ without reworking worlds. No other provider is required for launch.
 - Exact wire format of a `proof` and the challenge lifetime bounds.
 - How `displayHints` consent is expressed and revoked.
 - The `.well-known` delegation format for a cross-origin identity scope.
-- Whether `external:<provider>` discovery is manifest-declared, user-configured, or both.
+- How `external:<provider>` discovery combines manifest provider hints, user configuration,
+  and verified `.well-known` metadata. Manifest hints are untrusted and never bypass the
+  broker.
 - Minimum required cryptographic guarantees to state without over-specifying a ciphersuite.
 
 ## 16. Relationship to other work

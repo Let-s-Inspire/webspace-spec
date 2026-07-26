@@ -80,9 +80,16 @@ profile identifier and schema path. Fields must not silently change meaning.
 The experimental profile validates syntax but does not prove domain ownership.
 Publisher verification and delegated ownership remain future work.
 
-`canonicalUrl`, when present, identifies the preferred public package entry
-URL. It may refer to a loose manifest, bundle, or HTML carrier. It does not
-grant trust and is not the base URL for internal resources.
+`canonicalUrl`, when present, identifies the preferred public, shareable
+Webspace destination. It is the URL used for top-level navigation and honest
+address-bar/history behavior under proposal 0004. It should normally be an
+HTML page capable of loading the Webspace directly, not a raw manifest or
+bundle URL.
+
+The URL from which package bytes were acquired is runtime source metadata and
+is distinct from `canonicalUrl`. It may identify a loose manifest, bundle, or
+HTML carrier. Neither URL grants trust, and neither is the base URL for
+internal resources.
 
 A Browser should key remembered grants by at least package ID, publisher or
 origin evidence, and capability scope. An ID string alone is insufficient.
@@ -228,6 +235,23 @@ must reject an unknown required capability and deny or ignore an unknown
 optional capability.
 
 The effective-power intersection from proposal 0001 remains controlling.
+
+## 10. Identity Requests
+
+The optional `identity.requests` array declares identity levels that world
+code may request through the broker defined by proposal 0003. Each declaration
+contains:
+
+- `level`: `anonymous`, `world-pseudonym`, `global`, or
+  `external:<provider-name>`;
+- `reason`: a user-facing explanation;
+- optional `claims`: provider-specific claims the world may request;
+- optional `providerHint`: discovery metadata for an external provider.
+
+A provider hint does not select a provider, grant identity, or let world code
+contact that provider. The Browser remains the broker and may ignore a hint.
+The granted level may be weaker than the requested level, down to
+`anonymous`, and worlds must handle that result.
 Manifest validation never grants a capability.
 
 ## 10. Dependencies
