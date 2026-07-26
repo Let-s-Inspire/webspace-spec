@@ -12,7 +12,7 @@ Early work will define:
 
 - The goals and non-goals of the Webspace standard.
 - A threat model and permission-request model.
-- A versioned `.wsp` manifest format.
+- Versioned `.wsp` world and `.wso` object package formats.
 - World lifecycle and capability negotiation.
 - Navigation and portal semantics.
 - Embedding and host communication.

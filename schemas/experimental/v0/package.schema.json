@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webspacebrowser.com/schemas/experimental/v0/package.schema.json",
+  "title": "Webspace experimental package envelope v0",
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "packageId": {
+      "type": "string",
+      "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}\\.)+[a-z0-9][a-z0-9-]{0,62}$",
+      "maxLength": 255
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$"
+    },
+    "featureName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$",
+      "maxLength": 255
+    },
+    "uriReference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "not": {
+        "pattern": "^[A-Za-z][A-Za-z0-9+.-]*://[^/?#]*@"
+      }
+    },
+    "packageResource": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 2048,
+      "pattern": "^package:/[^?#\\\\\\u0000-\\u001F]+$",
+      "not": {
+        "anyOf": [
+          { "pattern": "^package://" },
+          { "pattern": "//" },
+          { "pattern": "(?:^|/)\\.{1,2}(?:/|$)" }
+        ]
+      }
+    },
+    "resourceReference": {
+      "oneOf": [
+        { "$ref": "#/$defs/packageResource" },
+        { "$ref": "#/$defs/absoluteHttpsUri" }
+      ]
+    },
+    "absoluteHttpsUri": {
+      "type": "string",
+      "pattern": "^https://[^\\s]+$",
+      "maxLength": 2048
+    },
+    "integrity": {
+      "type": "string",
+      "pattern": "^(sha256|sha384|sha512)-[A-Za-z0-9+/]+={0,2}$"
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+    },
+    "vector3": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number" },
+        { "type": "number" },
+        { "type": "number" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "quaternion": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number" },
+        { "type": "number" },
+        { "type": "number" },
+        { "type": "number" }
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "orientation"],
+      "properties": {
+        "position": { "$ref": "#/$defs/vector3" },
+        "orientation": { "$ref": "#/$defs/quaternion" },
+        "scale": { "$ref": "#/$defs/vector3" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "homepage": { "$ref": "#/$defs/absoluteHttpsUri" },
+        "license": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "authors": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+              "url": { "$ref": "#/$defs/absoluteHttpsUri" }
+            }
+          }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "load": { "$ref": "#/$defs/identifier" },
+        "ready": { "$ref": "#/$defs/identifier" },
+        "enter": { "$ref": "#/$defs/identifier" },
+        "pause": { "$ref": "#/$defs/identifier" },
+        "resume": { "$ref": "#/$defs/identifier" },
+        "unload": { "$ref": "#/$defs/identifier" }
+      }
+    },
+    "executableResource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "integrity"],
+      "properties": {
+        "module": { "$ref": "#/$defs/packageResource" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "export": { "$ref": "#/$defs/identifier" },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "module", "integrity", "phase"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "module": { "$ref": "#/$defs/packageResource" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "phase": { "enum": ["preload", "load", "lazy"] }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "url", "mediaType"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "url": { "$ref": "#/$defs/resourceReference" },
+        "mediaType": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$"
+        },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requires": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/featureName" }
+        },
+        "optional": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/featureName" }
+        }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "required", "reason"],
+      "properties": {
+        "name": { "$ref": "#/$defs/featureName" },
+        "required": { "type": "boolean" },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "scope": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$"
+          }
+        }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "package", "integrity"],
+      "properties": {
+        "id": { "$ref": "#/$defs/packageId" },
+        "version": {
+          "type": "string",
+          "pattern": "^(?:[~^]|>=?|<=?)?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$"
+        },
+        "package": { "$ref": "#/$defs/absoluteHttpsUri" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "optional": { "type": "boolean" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/featureName" }
+        },
+        "purposes": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 32,
+          "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memoryMiB": { "type": "integer", "minimum": 1, "maximum": 65536 },
+        "workers": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "networkConnections": { "type": "integer", "minimum": 0, "maximum": 1024 },
+        "persistentStorageMiB": { "type": "integer", "minimum": 0, "maximum": 1048576 },
+        "frameTimeMs": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000 }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "optionalCapabilityDenied": { "enum": ["degrade", "reject"] },
+        "dependencyFailure": { "enum": ["degrade", "reject"] },
+        "authorityLoss": { "enum": ["offline", "retry", "exit"] }
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}\\.)+[a-z0-9][a-z0-9-]{0,62}$"
+      }
+    }
+  }
+}

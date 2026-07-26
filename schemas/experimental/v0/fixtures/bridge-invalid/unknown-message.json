@@ -1,0 +1,6 @@
+{
+  "protocol": "https://webspacebrowser.com/protocols/origin-bridge/experimental-v0",
+  "type": "webspace.bridge.execute",
+  "requestId": "unsafe",
+  "code": "alert(1)"
+}

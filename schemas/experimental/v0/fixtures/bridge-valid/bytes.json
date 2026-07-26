@@ -1,0 +1,10 @@
+{
+  "protocol": "https://webspacebrowser.com/protocols/origin-bridge/experimental-v0",
+  "type": "webspace.bridge.bytes",
+  "requestId": "resource-3",
+  "ok": true,
+  "url": "package:/resources/world.js",
+  "mediaType": "text/javascript",
+  "byteLength": 1024,
+  "body": {}
+}

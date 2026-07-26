@@ -3,8 +3,8 @@
 Status: **exploratory**. This proposal is not normative and makes no conformance claim.
 Proposal numbering is provisional.
 
-Depends on a goals/non-goals and threat-model proposal that does not exist yet (tracked as
-launch node **S0**). This document maps to launch node **P8** (generic Webspace
+Depends on `0001-goals-trust-and-threat-model.md` (launch node **S0**). This
+document maps to launch node **P8** (generic Webspace
 identity-provider interface). It is deliberately narrow: it defines a *seam*, not a
 specific identity product.
 
@@ -248,9 +248,15 @@ without reworking worlds. No other provider is required for launch.
 
 ## 16. Relationship to other work
 
-- **S0** goals/threat model should land first and this proposal should be reconciled to it.
+- **0001 / S0:** supplies the controlling goals and threat model. In
+  particular, automatic `world-pseudonym` behavior still needs reconciliation
+  with 0001's transparency, reset, and privacy requirements.
 - The **embedding/navigation + session-handover** proposal covers identity continuity across
   an origin change and shares the "untrusted handoff data" rule.
+- The **package-source + origin-bridge** proposal uses this broker to obtain
+  short-lived, exact-origin, package-read credentials for private packages.
+  Those credentials authorize package delivery only and are never exposed to
+  world code or an untrusted relay.
 - Post-launch identity products (a custodial Passport service, a social/presence service,
   wallet and passkey custody) are consumers of this seam, specified separately, and must not
   be prerequisites for it.

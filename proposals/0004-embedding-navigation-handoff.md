@@ -3,8 +3,8 @@
 Status: **exploratory**. Not normative, no conformance claim. Proposal numbering is
 provisional.
 
-Depends on a goals/non-goals and threat-model proposal that does not exist yet (launch node
-**S0**). Maps to launch nodes **P6** (embedding and cross-Webspace navigation decision) and
+Depends on `0001-goals-trust-and-threat-model.md` (launch node **S0**). Maps
+to launch nodes **P6** (embedding and cross-Webspace navigation decision) and
 **R7** (session handover implementation). Companion to
 `0003-identity-provider-interface.md`, which this proposal references for identity
 continuity.
@@ -181,6 +181,7 @@ capture/crossfade technique are implementation details for the reference browser
 
 - **0003 (identity-provider interface):** supplies the identity continuation hint carried
   here and the re-authentication it triggers. Shares the "untrusted handoff data" rule.
-- **S0** goals/threat model should land first and this proposal should be reconciled to it.
+- **0001 / S0:** supplies the controlling origin-transparency, trusted-exit,
+  untrusted-handoff, and fail-safe requirements used here.
 - The manifest proposal (pending) should define the canonical-URL and entry semantics this
   proposal assumes.

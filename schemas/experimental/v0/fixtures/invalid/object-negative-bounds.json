@@ -1,0 +1,21 @@
+{
+  "profile": "https://webspacebrowser.com/profiles/package/experimental-v0",
+  "kind": "object",
+  "id": "com.example.negative-object",
+  "version": "0.1.0",
+  "metadata": { "name": "Negative object" },
+  "entry": {
+    "module": "package:/resources/object.js",
+    "integrity": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  },
+  "bounds": {
+    "size": [1, -1, 1]
+  },
+  "ownership": {
+    "initial": "placer"
+  },
+  "multiplicity": {
+    "perWorld": 1,
+    "perUser": 1
+  }
+}
