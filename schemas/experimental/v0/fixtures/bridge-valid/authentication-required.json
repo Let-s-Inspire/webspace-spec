@@ -1,0 +1,19 @@
+{
+  "protocol": "https://webspacebrowser.com/protocols/origin-bridge/experimental-v0",
+  "type": "webspace.bridge.result",
+  "requestId": "manifest-1",
+  "ok": false,
+  "error": {
+    "code": "authentication-required",
+    "message": "This package requires member access.",
+    "retryable": true,
+    "challenge": {
+      "package": "com.example.private-world",
+      "origin": "https://world.example",
+      "provider": "https://identity.example",
+      "scopes": [
+        "package.read"
+      ]
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "protocol": "https://webspacebrowser.com/protocols/origin-bridge/experimental-v0",
+  "type": "webspace.bridge.authenticate",
+  "requestId": "auth-1",
+  "authentication": {
+    "mode": "brokered-token",
+    "token": "header.payload.signature"
+  }
+}

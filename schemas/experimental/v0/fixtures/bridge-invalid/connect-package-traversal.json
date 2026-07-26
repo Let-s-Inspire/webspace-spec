@@ -1,0 +1,16 @@
+{
+  "protocol": "https://webspacebrowser.com/protocols/origin-bridge/experimental-v0",
+  "type": "webspace.bridge.connect",
+  "nonce": "R7uK1wD6DtjO5V3Mkz7g_Q",
+  "package": "../private/account.json",
+  "authentication": {
+    "mode": "public"
+  },
+  "limits": {
+    "manifestBytes": 1048576,
+    "resourceBytes": 67108864,
+    "packageBytes": 268435456,
+    "requests": 4096,
+    "idleMilliseconds": 30000
+  }
+}

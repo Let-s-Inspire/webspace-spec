@@ -1,0 +1,165 @@
+{
+  "$schema": "https://webspacebrowser.com/schemas/experimental/v0/world.schema.json",
+  "profile": "https://webspacebrowser.com/profiles/package/experimental-v0",
+  "kind": "world",
+  "id": "com.3dsplaza.world",
+  "version": "0.1.0",
+  "canonicalUrl": "https://3dsplaza.com/",
+  "metadata": {
+    "name": "3DSPlaza",
+    "description": "The 3DSPlaza social Webspace.",
+    "homepage": "https://3dsplaza.com/",
+    "license": "Proprietary",
+    "authors": [
+      {
+        "name": "Rob van den Berg",
+        "url": "https://3dsplaza.com/"
+      }
+    ]
+  },
+  "entry": {
+    "module": "package:/resources/3dsplaza-world.js",
+    "integrity": "sha384-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "export": "default",
+    "lifecycle": {
+      "load": "load",
+      "ready": "ready",
+      "enter": "enter",
+      "unload": "unload"
+    }
+  },
+  "assets": [
+    {
+      "id": "plaza-logo",
+      "url": "package:/resources/assets/logo.png",
+      "mediaType": "image/png",
+      "integrity": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "bytes": 20480
+    }
+  ],
+  "compatibility": {
+    "requires": [
+      "webspace.lifecycle.v0",
+      "com.3dsplaza.launch-channel"
+    ],
+    "optional": [
+      "webspace.xr.v0"
+    ]
+  },
+  "capabilities": [
+    {
+      "name": "webspace.user.pose-control",
+      "required": true,
+      "reason": "Provide world movement and spawn behavior.",
+      "scope": {
+        "position": true,
+        "orientation": true
+      }
+    }
+  ],
+  "privacy": {
+    "data": [
+      "webspace.identity.pseudonym",
+      "com.3dsplaza.account.role"
+    ],
+    "purposes": [
+      "Display member identity and authorize chat interactions."
+    ]
+  },
+  "resources": {
+    "memoryMiB": 512,
+    "workers": 4,
+    "networkConnections": 16,
+    "persistentStorageMiB": 32,
+    "frameTimeMs": 16.7
+  },
+  "failure": {
+    "optionalCapabilityDenied": "degrade",
+    "dependencyFailure": "reject",
+    "authorityLoss": "retry"
+  },
+  "presentation": {
+    "backgroundColor": "#FFFF00"
+  },
+  "navigation": {
+    "zones": [
+      {
+        "id": "plaza",
+        "label": "Main Plaza"
+      },
+      {
+        "id": "post-office",
+        "label": "Post Office"
+      }
+    ],
+    "edges": [
+      {
+        "from": "plaza",
+        "to": "post-office",
+        "mode": "walk"
+      },
+      {
+        "from": "post-office",
+        "to": "plaza",
+        "mode": "walk"
+      }
+    ]
+  },
+  "entrances": [
+    {
+      "id": "main",
+      "label": "Main Plaza",
+      "transform": {
+        "position": [0, 1.7, 5],
+        "orientation": [0, 0, 0, 1]
+      },
+      "zone": "plaza"
+    }
+  ],
+  "defaultEntrance": "main",
+  "authority": {
+    "mode": "dedicated",
+    "provider": "https://authority.3dsplaza.com/",
+    "required": true
+  },
+  "identity": {
+    "requests": [
+      {
+        "level": "external:com.3dsplaza.account",
+        "reason": "Recognize registered members and authorize member-only features.",
+        "claims": [
+          "com.3dsplaza.account.id",
+          "com.3dsplaza.account.role"
+        ],
+        "providerHint": "https://3dsplaza.com/.well-known/webspace-identity"
+      }
+    ]
+  },
+  "avatarPolicy": {
+    "admission": "allowlist",
+    "allow": [
+      "com.webspacebrowser.default-avatar",
+      "com.3dsplaza.avatar"
+    ],
+    "fallback": "com.3dsplaza.avatar"
+  },
+  "placementPolicy": {
+    "default": "deny",
+    "zones": [
+      "plaza"
+    ]
+  },
+  "portalPolicy": {
+    "public": "deny",
+    "private": "allow",
+    "zones": [
+      "plaza"
+    ]
+  },
+  "extensions": {
+    "com.3dsplaza.launch-channel": {
+      "channel": "prod",
+      "pollSeconds": 15
+    }
+  }
+}

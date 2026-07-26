@@ -1,0 +1,27 @@
+{
+  "$schema": "https://webspacebrowser.com/schemas/experimental/v0/world.schema.json",
+  "profile": "https://webspacebrowser.com/profiles/package/experimental-v0",
+  "kind": "world",
+  "id": "com.example.minimal-world",
+  "version": "0.1.0",
+  "metadata": {
+    "name": "Minimal World"
+  },
+  "entry": {
+    "module": "package:/resources/world.js",
+    "integrity": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  },
+  "presentation": {
+    "backgroundColor": "#87CEEB"
+  },
+  "entrances": [
+    {
+      "id": "main",
+      "transform": {
+        "position": [0, 1.7, 0],
+        "orientation": [0, 0, 0, 1]
+      }
+    }
+  ],
+  "defaultEntrance": "main"
+}

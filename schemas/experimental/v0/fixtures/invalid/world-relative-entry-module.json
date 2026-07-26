@@ -1,0 +1,22 @@
+{
+  "profile": "https://webspacebrowser.com/profiles/package/experimental-v0",
+  "kind": "world",
+  "id": "com.example.relative-entry",
+  "version": "0.1.0",
+  "metadata": { "name": "Relative entry" },
+  "entry": {
+    "module": "./world.js",
+    "integrity": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  },
+  "presentation": { "backgroundColor": "#000000" },
+  "entrances": [
+    {
+      "id": "main",
+      "transform": {
+        "position": [0, 0, 0],
+        "orientation": [0, 0, 0, 1]
+      }
+    }
+  ],
+  "defaultEntrance": "main"
+}

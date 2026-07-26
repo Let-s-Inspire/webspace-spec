@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webspacebrowser.com/schemas/experimental/v0/world.schema.json",
+  "title": "Webspace experimental world package v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile",
+    "kind",
+    "id",
+    "version",
+    "metadata",
+    "entry",
+    "presentation",
+    "entrances",
+    "defaultEntrance"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "profile": {
+      "const": "https://webspacebrowser.com/profiles/package/experimental-v0"
+    },
+    "kind": { "const": "world" },
+    "id": {
+      "$ref": "package.schema.json#/$defs/packageId"
+    },
+    "version": {
+      "$ref": "package.schema.json#/$defs/semver"
+    },
+    "canonicalUrl": {
+      "$ref": "package.schema.json#/$defs/absoluteHttpsUri"
+    },
+    "metadata": {
+      "$ref": "package.schema.json#/$defs/metadata"
+    },
+    "entry": {
+      "$ref": "package.schema.json#/$defs/executableResource"
+    },
+    "modules": {
+      "type": "array",
+      "maxItems": 128,
+      "items": { "$ref": "package.schema.json#/$defs/module" }
+    },
+    "assets": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": { "$ref": "package.schema.json#/$defs/asset" }
+    },
+    "compatibility": {
+      "$ref": "package.schema.json#/$defs/compatibility"
+    },
+    "capabilities": {
+      "type": "array",
+      "maxItems": 128,
+      "items": { "$ref": "package.schema.json#/$defs/capability" }
+    },
+    "dependencies": {
+      "type": "array",
+      "maxItems": 256,
+      "items": { "$ref": "package.schema.json#/$defs/dependency" }
+    },
+    "privacy": {
+      "$ref": "package.schema.json#/$defs/privacy"
+    },
+    "resources": {
+      "$ref": "package.schema.json#/$defs/resources"
+    },
+    "failure": {
+      "$ref": "package.schema.json#/$defs/failure"
+    },
+    "extensions": {
+      "$ref": "package.schema.json#/$defs/extensions"
+    },
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backgroundColor"],
+      "properties": {
+        "backgroundColor": {
+          "$ref": "package.schema.json#/$defs/color"
+        }
+      }
+    },
+    "entrances": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "transform"],
+        "properties": {
+          "id": { "$ref": "package.schema.json#/$defs/identifier" },
+          "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "transform": { "$ref": "package.schema.json#/$defs/transform" },
+          "zone": { "$ref": "package.schema.json#/$defs/identifier" }
+        }
+      }
+    },
+    "defaultEntrance": {
+      "$ref": "package.schema.json#/$defs/identifier"
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["none", "peer", "dedicated", "provider"] },
+        "provider": { "$ref": "package.schema.json#/$defs/absoluteHttpsUri" },
+        "required": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "mode": { "enum": ["dedicated", "provider"] } },
+            "required": ["mode"]
+          },
+          "then": {
+            "required": ["provider"],
+            "properties": {
+              "provider": true
+            }
+          }
+        }
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requests"],
+      "properties": {
+        "requests": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["level", "reason"],
+            "properties": {
+              "level": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "anonymous",
+                      "world-pseudonym",
+                      "global"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^external:[a-z0-9](?:[a-z0-9.-]{0,126}[a-z0-9])?$"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "claims": {
+                "type": "array",
+                "uniqueItems": true,
+                "maxItems": 64,
+                "items": { "$ref": "package.schema.json#/$defs/featureName" }
+              },
+              "providerHint": {
+                "$ref": "package.schema.json#/$defs/absoluteHttpsUri"
+              }
+            }
+          }
+        }
+      }
+    },
+    "avatarPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["admission"],
+      "properties": {
+        "admission": { "enum": ["any", "allowlist", "world-provided"] },
+        "allow": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 1024,
+          "items": { "$ref": "package.schema.json#/$defs/packageId" }
+        },
+        "fallback": { "$ref": "package.schema.json#/$defs/packageId" }
+      }
+    },
+    "placementPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default"],
+      "properties": {
+        "default": { "enum": ["deny", "allow", "allowlist"] },
+        "allow": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 4096,
+          "items": { "$ref": "package.schema.json#/$defs/packageId" }
+        },
+        "zones": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 1024,
+          "items": { "$ref": "package.schema.json#/$defs/identifier" }
+        }
+      }
+    },
+    "portalPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["public", "private"],
+      "properties": {
+        "public": { "enum": ["deny", "allow", "allowlist"] },
+        "private": { "enum": ["deny", "allow"] },
+        "zones": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 1024,
+          "items": { "$ref": "package.schema.json#/$defs/identifier" }
+        },
+        "destinations": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 1024,
+          "items": { "$ref": "package.schema.json#/$defs/packageId" }
+        }
+      }
+    },
+    "navigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "zones": {
+          "type": "array",
+          "maxItems": 1024,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id"],
+            "properties": {
+              "id": { "$ref": "package.schema.json#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 120 }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "$ref": "package.schema.json#/$defs/identifier" },
+              "to": { "$ref": "package.schema.json#/$defs/identifier" },
+              "mode": { "enum": ["walk", "teleport", "portal", "scripted"] }
+            }
+          }
+        }
+      }
+    },
+    "objects": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "package", "version", "transform"],
+        "properties": {
+          "id": { "$ref": "package.schema.json#/$defs/identifier" },
+          "package": { "$ref": "package.schema.json#/$defs/packageId" },
+          "version": { "$ref": "package.schema.json#/$defs/semver" },
+          "transform": { "$ref": "package.schema.json#/$defs/transform" },
+          "zone": { "$ref": "package.schema.json#/$defs/identifier" },
+          "configuration": { "type": "object" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://webspacebrowser.com/schemas/experimental/v0/object.schema.json",
+  "profile": "https://webspacebrowser.com/profiles/package/experimental-v0",
+  "kind": "object",
+  "id": "com.3dsplaza.connect-four",
+  "version": "0.1.0",
+  "metadata": {
+    "name": "Connect Four",
+    "description": "A reusable multiplayer Connect Four board."
+  },
+  "entry": {
+    "module": "package:/resources/connect-four.js",
+    "integrity": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "lifecycle": {
+      "load": "load",
+      "ready": "ready",
+      "unload": "unload"
+    }
+  },
+  "compatibility": {
+    "requires": [
+      "webspace.interaction.point.v0",
+      "webspace.object.ports.v0"
+    ]
+  },
+  "capabilities": [
+    {
+      "name": "webspace.network.authority",
+      "required": true,
+      "reason": "Synchronize moves and determine the game result.",
+      "scope": {
+        "state": "game"
+      }
+    }
+  ],
+  "bounds": {
+    "size": [3.5, 3, 1],
+    "center": [0, 1.5, 0]
+  },
+  "footprint": {
+    "radius": 2,
+    "clearance": 0.5,
+    "surface": "floor"
+  },
+  "ownership": {
+    "initial": "authority",
+    "transferable": false
+  },
+  "multiplicity": {
+    "perWorld": 32,
+    "perUser": 1
+  },
+  "interactions": [
+    "point",
+    "activate"
+  ],
+  "ports": {
+    "inputs": [
+      {
+        "name": "startMatch",
+        "schema": {
+          "type": "object",
+          "required": ["players"],
+          "properties": {
+            "players": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "name": "result",
+        "schema": "https://webspacebrowser.com/schemas/events/game-result-v0.json"
+      }
+    ]
+  },
+  "replication": {
+    "mode": "authority",
+    "provider": "https://authority.3dsplaza.com/"
+  },
+  "persistence": {
+    "mode": "world",
+    "maxBytes": 4096
+  },
+  "cleanup": {
+    "onOwnerLeave": "keep",
+    "idleSeconds": 1800
+  }
+}

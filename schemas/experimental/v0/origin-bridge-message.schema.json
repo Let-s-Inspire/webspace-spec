@@ -1,0 +1,408 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webspacebrowser.com/schemas/experimental/v0/origin-bridge-message.schema.json",
+  "title": "Webspace experimental origin bridge control message v0",
+  "oneOf": [
+    { "$ref": "#/$defs/connect" },
+    { "$ref": "#/$defs/connected" },
+    { "$ref": "#/$defs/simpleRequest" },
+    { "$ref": "#/$defs/readRequest" },
+    { "$ref": "#/$defs/authenticateRequest" },
+    { "$ref": "#/$defs/close" },
+    { "$ref": "#/$defs/describeResult" },
+    { "$ref": "#/$defs/bytesResult" },
+    { "$ref": "#/$defs/errorResult" }
+  ],
+  "$defs": {
+    "protocol": {
+      "const": "https://webspacebrowser.com/protocols/origin-bridge/experimental-v0"
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[\\x20-\\x7E]+$"
+    },
+    "nonce": {
+      "type": "string",
+      "minLength": 22,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "packageSelection": {
+      "oneOf": [
+        { "const": "embedded" },
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "pattern": "^(?:\\./|/)?[A-Za-z0-9._~-]+(?:/[A-Za-z0-9._~-]+)*$",
+          "not": {
+            "anyOf": [
+              { "pattern": "^[A-Za-z][A-Za-z0-9+.-]*:" },
+              { "pattern": "(?:^|/)\\.\\.(?:/|$)|/\\.(?:/|$)" },
+              { "pattern": "[?#\\\\\\u0000-\\u001F]" }
+            ]
+          }
+        }
+      ]
+    },
+    "authentication": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": { "const": "public" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": { "const": "origin-session" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "audience", "token"],
+          "properties": {
+            "mode": { "const": "brokered-token" },
+            "audience": {
+              "$ref": "package.schema.json#/$defs/absoluteHttpsUri"
+            },
+            "token": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 16384
+            }
+          }
+        }
+      ]
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifestBytes",
+        "resourceBytes",
+        "packageBytes",
+        "requests",
+        "idleMilliseconds"
+      ],
+      "properties": {
+        "manifestBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        },
+        "resourceBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967296
+        },
+        "packageBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 17179869184
+        },
+        "requests": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "idleMilliseconds": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 3600000
+        }
+      }
+    },
+    "connect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "type",
+        "nonce",
+        "package",
+        "authentication",
+        "limits"
+      ],
+      "properties": {
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "type": { "const": "webspace.bridge.connect" },
+        "nonce": { "$ref": "#/$defs/nonce" },
+        "package": { "$ref": "#/$defs/packageSelection" },
+        "authentication": { "$ref": "#/$defs/authentication" },
+        "limits": { "$ref": "#/$defs/limits" }
+      }
+    },
+    "connected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "type",
+        "nonce",
+        "bridgeVersion",
+        "operations"
+      ],
+      "properties": {
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "type": { "const": "webspace.bridge.connected" },
+        "nonce": { "$ref": "#/$defs/nonce" },
+        "bridgeVersion": {
+          "$ref": "package.schema.json#/$defs/semver"
+        },
+        "operations": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 3,
+          "items": {
+            "enum": [
+              "describe",
+              "bundle",
+              "manifest",
+              "read",
+              "authenticate",
+              "close"
+            ]
+          },
+          "allOf": [
+            { "contains": { "const": "describe" } },
+            { "contains": { "const": "close" } }
+          ],
+          "anyOf": [
+            { "contains": { "const": "bundle" } },
+            { "contains": { "const": "manifest" } }
+          ]
+        }
+      }
+    },
+    "simpleRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "type", "requestId"],
+      "properties": {
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "type": {
+          "enum": [
+            "webspace.bridge.describe",
+            "webspace.bridge.bundle",
+            "webspace.bridge.manifest"
+          ]
+        },
+        "requestId": { "$ref": "#/$defs/requestId" }
+      }
+    },
+    "readRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "type", "requestId", "reference"],
+      "properties": {
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "type": { "const": "webspace.bridge.read" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "reference": {
+          "$ref": "package.schema.json#/$defs/packageResource"
+        }
+      }
+    },
+    "authenticateRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "type",
+        "requestId",
+        "authentication"
+      ],
+      "properties": {
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "type": { "const": "webspace.bridge.authenticate" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "authentication": { "$ref": "#/$defs/authentication" }
+      }
+    },
+    "close": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "type", "requestId"],
+      "properties": {
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "type": { "const": "webspace.bridge.close" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "reason": {
+          "type": "string",
+          "maxLength": 240
+        }
+      }
+    },
+    "describeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "type", "requestId", "ok", "result"],
+      "properties": {
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "type": { "const": "webspace.bridge.result" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "ok": { "const": true },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "representation",
+            "packageMediaType",
+            "packageRoot",
+            "authenticated"
+          ],
+          "properties": {
+            "kind": { "enum": ["world", "object", "unknown"] },
+            "representation": { "enum": ["bundle", "loose"] },
+            "packageMediaType": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "packageRoot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "authenticated": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "bytesResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "type",
+        "requestId",
+        "ok",
+        "url",
+        "mediaType",
+        "byteLength",
+        "body"
+      ],
+      "properties": {
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "type": { "const": "webspace.bridge.bytes" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "ok": { "const": true },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "mediaType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "body": {
+          "$comment": "At runtime this value must be a transferred ArrayBuffer."
+        }
+      }
+    },
+    "challenge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package", "origin", "provider", "scopes"],
+      "properties": {
+        "package": {
+          "$ref": "package.schema.json#/$defs/packageId"
+        },
+        "origin": {
+          "$ref": "package.schema.json#/$defs/absoluteHttpsUri"
+        },
+        "provider": {
+          "$ref": "package.schema.json#/$defs/absoluteHttpsUri"
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "package.schema.json#/$defs/featureName"
+          }
+        }
+      }
+    },
+    "errorResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "type", "requestId", "ok", "error"],
+      "properties": {
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "type": { "const": "webspace.bridge.result" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "ok": { "const": false },
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message", "retryable"],
+          "properties": {
+            "code": {
+              "enum": [
+                "invalid-request",
+                "unsupported-protocol",
+                "unsupported-operation",
+                "not-connected",
+                "authentication-required",
+                "authentication-denied",
+                "manifest-not-found",
+                "bundle-not-found",
+                "resource-not-declared",
+                "resource-not-found",
+                "resource-too-large",
+                "package-limit-exceeded",
+                "request-limit-exceeded",
+                "timeout",
+                "redirect-denied",
+                "origin-denied",
+                "read-failed",
+                "closed",
+                "internal-error"
+              ]
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "retryable": { "type": "boolean" },
+            "challenge": { "$ref": "#/$defs/challenge" }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "code": { "const": "authentication-required" }
+                },
+                "required": ["code"]
+              },
+              "then": {
+                "required": ["challenge"],
+                "properties": {
+                  "challenge": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
