@@ -158,12 +158,13 @@ implement any.
 | From | To | Cause |
 |---|---|---|
 | acquired | negotiating | runtime begins capability negotiation (section 10) |
-| negotiating | loading | negotiation succeeds (every required capability granted) |
+| negotiating | loading | every required capability granted, and every denied optional capability handled by `degrade` |
+| negotiating | failed | a required capability is denied (denial or refused required consent), an optional capability is denied with policy `reject`, or negotiation times out |
 | loading | ready | load complete, instance emits its readiness signal (section 7) |
 | ready | active | enter (activation) |
 | active | paused | pause |
 | paused | active | resume |
-| negotiating, loading, ready, active, paused | failed | error, required-capability denial, consent refusal, or timeout |
+| loading, ready, active, paused | failed | error or timeout |
 | any | unloading | teardown requested (navigation, replacement, failure cleanup) |
 | unloading | unloaded | cleanup complete |
 | failed | unloading | cleanup after failure |
@@ -221,23 +222,29 @@ This realizes 0001 section 8 at runtime.
   **granted** or **denied** using the 0001 effective-power intersection (package request AND
   browser/user grant AND world admission AND authority authorization when required AND runtime
   limits). The requests are static and known at acquisition, so resolution never requires
-  running untrusted code first. Consent presentation is a browser responsibility. A required
-  denial, a consent refusal, or a negotiation timeout ends `negotiating` in `failed` (section 8).
+  running untrusted code first. Consent presentation is a browser responsibility. **Consent
+  refusal is treated as a denial of the affected capability, not as an automatic failure**: a
+  refused required capability fails, and a refused optional capability is resolved by the package
+  policy below.
 - **Grant.** A grant is least-privilege, scoped to the package identity and version-compatible
   context, bounded by target/operation/duration, observable in trusted UI, and revocable.
 - **Required vs optional.**
-  - A **required** capability that is denied ends `negotiating` in `failed`. The instance never
-    loads or enters, and the browser surfaces a clear, recoverable failure (0001 section 20).
-  - An **optional** capability that is denied does not fail negotiation. The instance proceeds
-    per the package's single declared `failure.optionalCapabilityDenied` policy (0002): either
-    `degrade` (continue without the capability) or `reject` (the package elects not to run). The
-    runtime never forces entry, and one control governs the choice, not two.
+  - A **required** capability that is denied (including a refused required consent) ends
+    `negotiating` in `failed`. The instance never loads or enters, and the browser surfaces a
+    clear, recoverable failure (0001 section 20).
+  - An **optional** capability that is denied is resolved by the package's single declared
+    `failure.optionalCapabilityDenied` policy (0002), which selects the transition:
+    - `degrade`: `negotiating -> loading`; the instance runs without the capability.
+    - `reject`: `negotiating -> failed`, with a clear, recoverable reason (the package declined
+      to run without the optional capability).
+
+    One control governs the choice, not two, and the runtime never forces entry.
 - **Unknown capabilities fail closed.** An unknown required capability prevents entry. An
   unknown optional capability is ignored (0001 section 20).
 - **Revocation.** The runtime MAY revoke a granted capability at any time. The package must
   tolerate revocation: the operation the capability gated stops promptly, and the package
-  degrades to its optional-denied fallback or, for a required capability, is torn down. Input
-  and device capabilities must stop promptly on revocation (0001 section 9).
+  degrades per its `failure.optionalCapabilityDenied` policy or, for a required capability, is
+  torn down. Input and device capabilities must stop promptly on revocation (0001 section 9).
 - **Enforcement, not declaration.** A granted capability gates real runtime operations. A
   package that was denied a capability cannot perform the gated operation. Declaration alone
   never confers the power (0001 effective-power rule).
