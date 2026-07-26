@@ -94,7 +94,10 @@ A world requests one of these levels. Higher levels require stronger consent.
 | `external:<provider>` | an account issued by a named external provider (e.g. a world operator) | provider-defined, plus user consent |
 
 `world-pseudonym` is the recommended default for "remember me here" needs, because it gives
-persistence without cross-world tracking.
+persistence without cross-world tracking. Automatic grant does not make its use invisible:
+the Browser must let the user see that a stable pseudonym is active for the current world,
+inspect that pseudonym, and reset or rotate it. Reset is a deliberate "forget me here"
+action: subsequent visits appear to the world as a fresh identity.
 
 ### 4.2 Capability request, not grant
 
@@ -192,6 +195,9 @@ server that performs this verification. A client-asserted level or id is advisor
   (anti-phishing).
 - **Unlinkability by default.** `world-pseudonym` prevents cross-world correlation.
   Revealing `global` identity is an explicit, consented act.
+- **Transparent and resettable pseudonyms.** The Browser exposes each world's active
+  pseudonym and its lifetime/reset controls. Derivation, rotation, and reset must not reveal
+  a shared root or otherwise let two worlds correlate their pseudonyms.
 - **Handoff/identity data is untrusted input.** Anything a world or an embedding host passes
   must be size/type-validated and never contain another user's secrets. A continuation hint
   crossing origins must not be a private key.
@@ -253,9 +259,9 @@ without reworking worlds. No other provider is required for launch.
 
 ## 16. Relationship to other work
 
-- **0001 / S0:** supplies the controlling goals and threat model. In
-  particular, automatic `world-pseudonym` behavior still needs reconciliation
-  with 0001's transparency, reset, and privacy requirements.
+- **0001 / S0:** supplies the controlling goals and threat model. Automatic
+  `world-pseudonym` behavior follows its transparency, reset, and
+  non-correlation requirements.
 - The **embedding/navigation + session-handover** proposal covers identity continuity across
   an origin change and shares the "untrusted handoff data" rule.
 - The **package-source + origin-bridge** proposal uses this broker to obtain
