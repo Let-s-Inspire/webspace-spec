@@ -75,8 +75,10 @@ Non-goals:
 ## 5. Instance model
 
 - A **world instance** is the top-level environment for a visit. Exactly one is active per
-  browsing context at a time. It owns the world-scoped facilities (networking/authority,
-  identity brokering, presence, and the shared clock).
+  browsing context at a time. It coordinates the world-scoped facilities (networking/authority,
+  presence, and the shared clock) and receives scoped, brokered access to Browser-owned
+  facilities. The Browser, not the world, owns the identity broker and all trusted brokering
+  (0001, 0003): a world only ever receives scoped, brokered results, never the broker itself.
 - An **object instance** is a reusable package (`.wso`) instantiated inside a world. Zero or
   more may exist, each independently. An object owns none of the world-scoped facilities.
 - Both are **instances** and share the same lifecycle state machine and callback contract.
@@ -105,10 +107,13 @@ Non-goals:
 ```
 
 - **acquired**: validated and executable, no code run yet.
-- **loading**: the entry module is instantiated and the `load` callback runs. Preload-phase
-  modules and declared assets are prepared. Capability negotiation (section 10) completes here.
-- **ready**: the instance can produce its first frame and has signalled readiness, but is not
-  yet live/entered. Corresponds to first-frame priming in the reference implementation.
+- **loading**: entered only after capability negotiation (section 10) has completed, because the
+  manifest's capability requests are known at acquisition and no untrusted package code may run
+  before its powers are resolved. On entry the runtime imports and instantiates the entry
+  module, runs the `load` callback, and prepares preload-phase modules and declared assets.
+- **ready**: the instance has **signalled readiness** to the runtime (section 7) and can
+  produce its first frame, but is not yet live/entered. Corresponds to first-frame priming in
+  the reference implementation.
 - **active**: `enter` has run and the instance is being driven (ticked/drawn).
 - **paused**: the instance is suspended, not driven, retaining state. Reached from `active`
   via `pause`, left via `resume`.
@@ -135,14 +140,25 @@ implement any.
   export an error hook, but the runtime's failure and cleanup behavior does not depend on it.
 - `enter` fires **once**, on the first activation. Re-activation after pause uses `resume`,
   not `enter`.
-- A callback that throws or times out transitions the instance to `failed` (section 9).
+- **Readiness signalling (not circular).** The `loading` to `ready` transition is driven by a
+  **readiness signal the instance emits to the runtime**, the opposite direction from the
+  `ready` callback the runtime invokes on the instance. After `load`, the instance tells the
+  runtime it is ready either through an explicit readiness primitive or by producing its first
+  primed frame (the reference implementation infers readiness from the first content frame).
+  That signal causes the transition to `ready`. The `ready` **callback** is then invoked by the
+  runtime as an acknowledgement and a last chance to prepare the first shown frame. The callback
+  does not gate the transition, so there is no circular dependency.
+- A callback that throws or times out during `load`, `ready`, `enter`, `pause`, or `resume`
+  transitions the instance to `failed` (section 9). **`unload` is excluded**: an error thrown
+  from `unload` or during teardown does not enter `failed`, it is reported and teardown proceeds
+  to `unloaded` (sections 8 and 9).
 
 ## 8. Legal transitions
 
 | From | To | Cause |
 |---|---|---|
 | acquired | loading | runtime begins execution |
-| loading | ready | load complete, readiness signalled |
+| loading | ready | load complete, instance emits its readiness signal (section 7) |
 | ready | active | enter (activation) |
 | active | paused | pause |
 | paused | active | resume |
@@ -155,6 +171,11 @@ All other transitions are illegal. In particular: no `enter` from `paused` (use 
 return from `failed` except to teardown, and no re-entry of a terminal `unloaded` instance
 (a new instance is created instead).
 
+There is deliberately **no `unloading -> failed` transition**. Teardown always proceeds to
+`unloaded`. An error thrown during `unload` or cleanup is reported but never restarts cleanup or
+loops it through `failed`. A `failed` instance itself proceeds through `unloading` to `unloaded`
+exactly once.
+
 ## 9. Cancellation, timeout, failure, cleanup, idempotency
 
 - **Bounded phases.** `loading` and the `ready` transition are bounded by a browser-supplied
@@ -164,10 +185,12 @@ return from `failed` except to teardown, and no re-entry of a terminal `unloaded
 - **Cancellation.** Navigating away or replacing an instance before it reaches `active` must
   transition it to `unloading` and abort pending work. Cancellation is not an error, and it
   must not leave a live boundary.
-- **Failure.** Any thrown or timed-out callback, an isolation-boundary crash, or a validation
-  failure surfaced during execution transitions to `failed`, then teardown. A failed world
-  must leave the browser's trusted UI and navigation available (0001 section 20). A failed
-  object must not corrupt its containing world.
+- **Failure.** A thrown or timed-out `load`, `ready`, `enter`, `pause`, or `resume` callback, an
+  isolation-boundary crash, or a validation failure surfaced during execution transitions to
+  `failed`, then teardown. An error during `unload` or teardown is the exception: it is reported
+  and teardown continues to `unloaded` without entering `failed`. A failed world must leave the
+  browser's trusted UI and navigation available (0001 section 20). A failed object must not
+  corrupt its containing world.
 - **Cleanup.** Teardown releases the isolation boundary (terminates the worker), removes the
   instance's contribution to the world, releases owned resources (GPU handles, audio, ports,
   network sessions), and closes the 0005 source.
@@ -183,13 +206,20 @@ return from `failed` except to teardown, and no re-entry of a terminal `unloaded
 
 This realizes 0001 section 8 at runtime.
 
-- **Request.** Capabilities are declared in the manifest (0002 section 9): a versioned dotted
-  `name`, `required` flag, human `reason`, and `scope`. A runtime dynamic-request path MAY
-  exist, but is not required for the launch profile.
-- **Negotiation.** During `loading`, the runtime resolves each requested capability to
-  **granted** or **denied** using the 0001 effective-power intersection (package request AND
-  browser/user grant AND world admission AND authority authorization when required AND runtime
-  limits). Consent presentation is a browser responsibility.
+- **Request (one canonical shape).** Capabilities are declared in the manifest using the single
+  canonical capability shape defined by 0002 (`package.schema.json#/$defs/capability`): a dotted
+  `name`, `required` flag, human `reason`, `scope`, and optionally `durationSeconds` and an
+  optional-denial `fallback` (`degrade` or `reject`, consistent with 0002's
+  `failure.optionalCapabilityDenied`). This proposal references that shape rather than
+  duplicating it. Delegating a capability to child objects is deferred (0001 section 8.4, a
+  future delegation mechanism) and is not part of the v0 request. A runtime dynamic-request path
+  MAY exist but is not required for the launch profile.
+- **Negotiation happens before any package code runs.** On the `acquired` to `loading`
+  transition, before the entry module is imported or executed, the runtime resolves each
+  requested capability to **granted** or **denied** using the 0001 effective-power intersection
+  (package request AND browser/user grant AND world admission AND authority authorization when
+  required AND runtime limits). The requests are static and known at acquisition, so resolution
+  never requires running untrusted code first. Consent presentation is a browser responsibility.
 - **Grant.** A grant is least-privilege, scoped to the package identity and version-compatible
   context, bounded by target/operation/duration, observable in trusted UI, and revocable.
 - **Required vs optional.**
@@ -227,7 +257,7 @@ Same state machine and callbacks, with these differences:
 |---|---|---|
 | Multiplicity | exactly one active | zero or more |
 | Enter trigger | activation on navigation-ready | activation on placement/becoming-active in its context |
-| Owns world facilities | yes (networking/authority, identity broker, presence, clock) | no |
+| World-scoped facilities | coordinates networking/authority, presence, clock; receives scoped access to the Browser-owned identity broker | none; receives only what the Browser and world expose |
 | Teardown trigger | navigation away or replacement | removal from its context (for example a replicated placement roster) |
 | Replacement | new world instance via navigation | dispose and re-instantiate when its package identity or key placement inputs change |
 
@@ -242,10 +272,15 @@ Same state machine and callbacks, with these differences:
 ## 13. Isolation and ownership
 
 - Each instance executes in its own **isolation boundary** (0001 section 15). The reference
-  implementation uses one dedicated Web Worker per instance, with the untrusted module
-  imported only after nested-worker creation is disabled inside the boundary. Standardized:
-  **a package MUST NOT create further isolation boundaries** (no nested workers), and the
-  browser enforces this.
+  implementation uses one dedicated Web Worker per instance, with the untrusted module imported
+  only after nested-worker creation is disabled inside the boundary. Standardized: **a package
+  MUST NOT create its own nested isolation boundaries** (it cannot spawn workers to escape its
+  sandbox), and the browser enforces this. This does not forbid parallelism. The browser MAY
+  provision **Browser-managed** worker tasks on the package's behalf, counted against the
+  package's `resources.workers` budget (0002). The distinction is ownership: the package never
+  controls an isolation boundary directly, and the browser provisions, owns, and can terminate
+  any additional tasks. `resources.workers` is a Browser-managed budget, not a license to create
+  boundaries.
 - The browser (not the package) **owns the boundary handle and its lifetime**. There is a
   single termination point per instance (section 9).
 - The API surface exposed inside the boundary is defined elsewhere (rendering/scripting spec,
@@ -331,9 +366,11 @@ so the spec is not mistaken for current behavior:
 This proposal adds one machine-verifiable schema where it gives real coverage: the capability
 negotiation message (`schemas/experimental/v0/capability-negotiation.schema.json`), covering a
 capability **request** set and a capability **resolution** set (grant/deny with
-required/optional and fallback), with valid and invalid fixtures. The lifecycle state machine
-itself is specified in prose and transition tables rather than a schema, because it is control
-flow, not a data shape. Passing the schema suite does not imply conformance.
+required/optional and fallback), with valid and invalid fixtures. The request items reference the
+single canonical capability shape from 0002 (`package.schema.json#/$defs/capability`) rather than
+duplicating it. The lifecycle state machine itself is specified in prose and transition tables
+rather than a schema, because it is control flow, not a data shape. Passing the schema suite does
+not imply conformance.
 
 ## 18. Relationship to other proposals
 

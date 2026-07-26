@@ -216,7 +216,13 @@ privilege escalation.
 - `name`: a lower-case dotted capability identifier;
 - `required`: whether denial prevents startup;
 - `reason`: user-facing justification;
-- `scope`: capability-specific bounds.
+- `scope`: capability-specific bounds;
+- `durationSeconds` (optional): the requested grant duration;
+- `fallback` (optional): behavior on optional-capability denial, `degrade` or `reject`,
+  consistent with `failure.optionalCapabilityDenied`.
+
+This is the single canonical capability request shape. Other proposals (for example the runtime
+capability negotiation in 0006) reference it rather than defining their own.
 
 Capability names beginning with `webspace.` are reserved. Examples include:
 

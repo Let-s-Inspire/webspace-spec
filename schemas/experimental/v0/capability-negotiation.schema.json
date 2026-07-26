@@ -23,23 +23,6 @@
         "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$"
       }
     },
-    "requestItem": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "required", "reason"],
-      "properties": {
-        "name": { "$ref": "#/$defs/featureName" },
-        "required": { "type": "boolean" },
-        "reason": { "type": "string", "minLength": 1, "maxLength": 240 },
-        "scope": { "$ref": "#/$defs/scope" },
-        "durationSeconds": { "type": "integer", "minimum": 0 },
-        "delegate": { "type": "boolean" },
-        "fallback": {
-          "type": "string",
-          "enum": ["reject", "degrade", "disable", "retry"]
-        }
-      }
-    },
     "resultItem": {
       "type": "object",
       "additionalProperties": false,
@@ -68,7 +51,7 @@
           "type": "array",
           "minItems": 1,
           "maxItems": 128,
-          "items": { "$ref": "#/$defs/requestItem" }
+          "items": { "$ref": "package.schema.json#/$defs/capability" }
         }
       }
     },
