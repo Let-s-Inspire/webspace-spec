@@ -13,7 +13,7 @@ Maps to launch node **P3** (unified input and interaction contract) and feeds
 **R3** (cross-device interaction foundation) and **C1** (content/game
 integration API). It reconciles the current Webspace Browser implementation
 recorded in the
-[P3 implementation inventory](https://github.com/Let-s-Inspire/webspace-browser/blob/docs/p3-interaction-input-contract-inventory/docs/p3-interaction-input-design-inventory-2026-07-26.md).
+[P3 implementation inventory](https://github.com/Let-s-Inspire/webspace-browser/blob/main/docs/p3-interaction-input-design-inventory-2026-07-26.md).
 
 ## 1. Scope, principles, and Browser enforcement
 
@@ -71,6 +71,7 @@ A target declaration contains:
   actions: ["point", "activate", "drag"],
   focusable: true,
   textEditable: false,
+  activationRepeat: "none",
   coordinateSpace: "surface-uv",
   cursor: "pointer",
   hands: ["left", "right"]
@@ -81,6 +82,8 @@ A target declaration contains:
   lifetime. The Browser qualifies it with the instance id.
 - `actions` is an allow-list. Undeclared actions are not delivered.
 - `focusable` and `textEditable` are affordances, not grants.
+- `activationRepeat` is `none` (the default) or `while-held`; section 5 defines
+  the one repeat lifecycle shared by every input source.
 - `coordinateSpace` is `none`, `surface-uv`, or `local-meters`. Values are
   finite and Browser-clamped. World-space rays and raw DOM events are not
   exposed by this contract.
@@ -131,57 +134,150 @@ plain-text payload supplied by a trusted native paste event while the target is
 focused. A package never receives a clipboard handle, MIME list, or background
 read primitive.
 
-## 4. Interaction event contract
+## 4. Versioned package-boundary protocol
 
-The Browser sends one normalized envelope across the package isolation
-boundary:
+All P3 messages use one bidirectional, discriminated envelope across the
+package isolation boundary:
 
 ```js
 {
-  version: "webspace-interaction-v0",
+  version: "webspace-input-v0",
+  kind: "interaction",
   sequence: 42,
   targetId: "stable-package-local-id",
-  action: "point",
-  phase: "update",
-  source: { kind: "pointer", pointerType: "mouse", hand: null },
-  coordinates: { kind: "surface-uv", x: 0.25, y: 0.75 },
-  buttons: ["primary"],
-  modifiers: { alt: false, control: false, meta: false, shift: false },
-  edit: null,
-  reason: null
+  requestId: null,
+  payload: {}
 }
 ```
 
-- `sequence` is monotonically increasing per package instance. It provides
-  ordering and duplicate detection inside that instance; it is not a network
-  sequence or authority proof.
-- `phase` is `start`, `update`, or `end`. `activate` is an `end` event.
-- `source.kind` is `pointer`, `touch`, `gamepad`, `xr-ray`, `xr-direct`, or
-  `keyboard`. Raw device ids and raw `Gamepad` objects are not exposed.
-- `coordinates` is absent when the target declared `none`; otherwise it uses
-  the declared, bounded coordinate space.
-- `buttons` contains semantic names such as `primary`, `secondary`, or `grip`,
-  not browser-specific numeric layouts.
-- modifiers are present only for applicable local input.
-- `edit` is present only for text-edit events defined in section 12.
-- `reason` is present on `cancel` and failures, using section 15 codes.
+`kind` completely determines the direction and payload:
 
-Unknown fields are ignored within v0. Unknown versions or actions fail closed
-for that event and surface a development diagnostic without tearing down the
-world.
+| Kind | Direction | Payload |
+|---|---|---|
+| `target` | package -> Browser | `{ operation: "register" | "update" | "remove", declaration }`; carries a `requestId`, `declaration` uses section 2, and declaration is absent for `remove` |
+| `request` | package -> Browser | `{ operation, parameters }` for `focus-text`, `blur-text`, `pointer-lock`, `clipboard-write`, or another capability-defined Browser operation |
+| `interaction` | Browser -> package | `{ action, phase, source, coordinates, controls, modifiers, reason }` where `action` is exactly one of the six section 2 actions |
+| `focus` | Browser -> package | `{ state: "focus" | "blur", reason }` |
+| `edit` | Browser -> package | `{ state: "update" | "commit" | "cancel", value, selectionStart, selectionEnd, selectionDirection, composing, compositionPhase, inputType, reason }` |
+| `result` | Browser -> package | `{ operation, status, grantId, reason, expiresAt }` correlated to one `requestId` |
 
-## 5. Mouse and pointer mapping
+The common fields have one meaning:
+
+- `version` is exactly `webspace-input-v0`. An unknown version is rejected
+  before inspecting its payload.
+- `sequence` is a positive, monotonically increasing integer per sender and
+  package instance. The Browser and package maintain independent sequences.
+  The ordered isolation channel preserves send order; a sequence at or below
+  the last accepted value is a duplicate/replay and is rejected. Gaps are
+  allowed and development-logged.
+- `targetId` is required for target-scoped interaction, focus, edit, and
+  request messages; it is otherwise `null`.
+- `requestId` is a package-generated, instance-unique string on `target` or
+  `request` and the correlated `result`; it is `null` for other kinds. Reusing
+  a completed id returns the current result without repeating the operation. A
+  bounded pending request limit prevents exhaustion.
+- `payload` must contain only fields allowed for its `kind`; sizes, strings,
+  finite numbers, enum values, target lifetime, current grant, and current
+  owner are validated before state changes or delivery.
+
+### 4.1 Interaction payload
+
+For `kind: "interaction"`:
+
+- `action` is `point`, `activate`, `grab`, `drag`, `release`, or `cancel`.
+- `phase` is `start`, `update`, or `end`. `activate`, `release`, and `cancel`
+  use `end`; `point` normally uses `update`; `grab` starts a direct
+  manipulation; `drag` updates a captured pointer or direct manipulation.
+- `source.kind` is `pointer`, `touch`, `gamepad`, `xr-ray`, `xr-direct`,
+  `keyboard`, or `accessibility`. Raw device ids and raw `Gamepad` objects are
+  not exposed.
+- `coordinates` is absent for `none`, `{ kind: "surface-uv", x, y }` with
+  `x/y` clamped to `[0, 1]`, or bounded local manipulation coordinates defined
+  in section 12.
+- `controls` contains only normalized axes in `[-1, 1]` and declared semantic
+  button names. It never contains raw device arrays.
+- `modifiers` contains applicable `alt`, `control`, `meta`, and `shift`
+  booleans.
+- `reason` is non-null only for `cancel`, using section 16 codes.
+
+### 4.2 Focus, edit, request, and result lifecycle
+
+Focus changes are delivered as `kind: "focus"` after Browser arbitration. On
+focus loss, the Browser first sends any final `edit` `commit` or `cancel`, then
+an interaction `cancel` when one is active, then `focus { state: "blur" }`.
+No edit follows that blur unless a later focus is granted.
+
+An `edit` `update` is a complete Browser-owned snapshot, not a patch. A
+composition uses `compositionPhase: "start" | "update" | "end"`; the one
+committed post-composition snapshot uses `state: "commit"`,
+`compositionPhase: "end"`, and `composing: false`. Cancellation uses
+`state: "cancel"` and never invents committed text.
+
+Every package `target` mutation or `request` receives exactly one initial
+`result` unless package teardown destroys the channel first. `status` is
+`granted`, `denied`, `unsupported`, `interrupted`, or `invalid`. `grantId` and
+`expiresAt` are present only when a scoped lease is granted. A granted,
+still-live request may later receive one revocation `result` with the original
+`requestId`, `status: "interrupted"`, and reason `revoked`, followed by required
+cleanup messages in the ordering above. That revocation replaces the current
+result returned for later idempotent reuse.
+
+`target` registration must succeed before that target can receive focus or
+interaction. Invalid package-to-Browser messages receive an `invalid` result
+when they carry a usable `requestId`; otherwise they are dropped and
+development-logged. Unknown fields are ignored only when the v0 kind explicitly
+permits extensions; otherwise they fail validation. Browser teardown stops all
+delivery after completing best-effort cancel/blur messages and does not wait
+for package acknowledgement.
+
+## 5. Shared activation lifecycle
+
+Every primary activation source—mouse, touch, keyboard, gamepad, XR ray, or an
+accessibility activation command—uses the same Browser-owned state machine:
+
+1. **Press:** a non-repeat press records the eligible target, source owner,
+   target lifetime, coordinates, and grants in a pressed record. It does not
+   emit `activate`.
+2. **Hold:** movement may transition an eligible target to drag; focus and
+   ownership remain with the pressed record. Repeated DOM keydown or gamepad
+   polling samples do not create another press.
+3. **Release:** release emits exactly one `activate` only if the original target
+   still exists, remains eligible and visible, retains required grants and
+   ownership, and the source has neither dragged nor been cancelled. Otherwise
+   it emits `cancel`. A release is never retargeted to the object currently
+   under the pointer/ray.
+4. **Interrupt:** disconnect, pointer/touch cancellation, tracking loss, focus
+   or visibility loss, target removal, ownership preemption, grant revocation,
+   world pause/unload, worker failure, navigation, or trusted UI takeover emits
+   `cancel` and clears the pressed record. A later physical release is ignored.
+
+For keyboard and accessibility activation, the pressed target is the currently
+focused eligible target. An accessibility platform command is normalized as
+one synthetic press/release pair; Browser arbitration still occurs between the
+two transitions.
+
+`activationRepeat: "none"` ignores hardware/DOM repeat and polling duplicates.
+For `while-held`, after the Browser's accessible repeat delay, each Browser
+timer tick revalidates the original pressed target and may emit one `activate`;
+device repeat events themselves remain ignored. Once any held repeat fires,
+physical release only closes the record and does not emit an extra activation.
+The delay/rate is Browser/user preference and applies identically regardless of
+the physical source.
+
+## 6. Mouse and pointer mapping
 
 For an unlocked fine pointer, movement performs `point`; primary
-`pointerdown` starts a possible activation and establishes the pressed target.
+`pointerdown` enters section 5 Press and records the eligible target.
 If movement crosses four CSS pixels, an eligible draggable target transitions
-to `drag`. `pointerup` on the valid pressed target produces `activate` if no
-drag began, or `release` if a drag is active. `pointercancel`, lost capture,
-target removal, or focus loss produces `cancel`.
+to `drag`. `pointerup` runs section 5 Release: it produces `activate` only
+after revalidating the original pressed target, or `release` if a drag is
+active. `pointercancel`, lost capture, target removal, or focus loss runs
+Interrupt and produces `cancel`.
 
 Under pointer lock, the world ray is the Browser-owned view-center ray. Relative
 mouse motion remains look input unless a captured drag's temporary drag lock is
-active. A primary press can activate the center-ray target. The Browser may
+active. Primary down records the center-ray target and primary up performs the
+same revalidated Release as an unlocked pointer. The Browser may
 render its own cursor or reticle; a world supplies only the advisory target
 cursor.
 
@@ -189,27 +285,30 @@ Compatibility mouse events generated after Pointer Events are suppressed for
 the same physical action. Secondary/context behavior remains Browser policy
 unless a future capability explicitly grants a bounded secondary action.
 
-## 6. Touch mapping
+## 7. Touch mapping
 
 A touch begins on exactly one owner: trusted Browser UI, a world target, or the
 Browser's movement/look controls. Its identifier remains with that owner until
 release or cancellation; moving across another surface does not transfer it.
 
-- A tap that remains within eight CSS pixels and 500 milliseconds maps to
-  `point` then `activate`.
+- `touchstart` on an eligible target records the section 5 pressed target. A
+  touch that remains within eight CSS pixels and 500 milliseconds remains an
+  activation candidate; `touchend` activates only after revalidating that
+  original target.
 - Movement beyond the threshold maps to `drag` only when the starting target
   declared it. Otherwise the original owner retains or cancels the touch
   according to its control.
 - `touchend` produces `release` for an active drag.
 - `touchcancel`, page gesture takeover, visibility loss, or target removal
-  produces `cancel`.
+  interrupts the pressed record and produces `cancel`; a later `touchend` is
+  ignored.
 
 Multiple touches may independently operate Browser movement/look controls.
 Launch world-object interaction is single-primary-touch: an additional touch
 cannot steal focus or capture and is ignored or retained by Browser UI.
 Browser/OS accessibility and navigation gestures outrank world interaction.
 
-## 7. Controller and gamepad mapping
+## 8. Controller and gamepad mapping
 
 The Browser selects one active flat-screen gamepad after an explicit input from
 that device; connection alone does not enter play or steal ownership. Dead
@@ -217,35 +316,47 @@ zones, repeat timing, layout normalization, and disconnect cleanup are Browser
 policy exposed through semantic actions:
 
 - reticle/look axes update `point`;
-- primary/A produces `activate`;
+- primary/A down records the eligible reticle or focused target; primary/A up
+  runs section 5 Release and activates only if that same target remains valid;
 - grip/bumper starts `grab` on an eligible target;
 - axes update `drag` while that target is held;
 - button-up produces `release`;
-- Back/B or device disconnect produces `cancel`;
+- Back/B, device disconnect, focus/ownership loss, or trusted UI takeover
+  produces `cancel` and suppresses the later button-up;
 - Start/Menu opens trusted Browser UI and preempts world input.
 
-Keyboard-only activation maps focus traversal plus Enter/Space to the same
-`point` and `activate` semantics. Device-specific labels may be shown by trusted
-Browser UI but are not added to package events.
+Gamepad polling while A remains down does not repeat Press. Held activation
+repeats only through the target's section 5 `activationRepeat` policy.
+Device-specific labels may be shown by trusted Browser UI but are not added to
+package events.
 
-## 8. XR mapping
+## 9. XR mapping
 
-An XR controller's target ray performs `point`. Trigger down/up maps to the same
-pressed-target and `activate` rules as a primary pointer. Trigger movement while
-captured maps to `drag`; trigger release maps to `release`.
+An XR controller's target ray performs `point`. Trigger down records the
+eligible ray target; trigger up activates only after revalidating that original
+target through section 5. Trigger movement while captured maps to `drag`;
+trigger release maps to `release` for a drag. Tracking or ownership loss before
+release maps to `cancel`, and the later trigger-up is ignored.
 
-Grip on a target inside Browser-defined reach starts `grab`; pose changes are
-converted to bounded semantic manipulation input or a package-declared local
-coordinate payload. Grip-up produces `release`. Tracking loss, input-source
-replacement, controller disconnect, reference-space reset that invalidates the
-target, or XR session end produces `cancel`.
+Grip on a target inside Browser-defined reach emits `grab` with phase `start`.
+Every accepted direct-manipulation update then uses `kind: "interaction"`,
+`action: "drag"`, `phase: "update"`, and `source.kind: "xr-direct"`.
+`coordinates` is `{ kind: "local-meters", position: [x, y, z], orientation:
+[x, y, z, w] }` in the target's declared manipulation frame: position
+components are finite and clamped to the target's declared local interaction
+bounds, and orientation is a finite normalized quaternion. Optional `controls`
+contains at most four normalized axes in `[-1, 1]` and declared semantic
+buttons such as `primary` or `grip`; it never contains the raw controller pose
+or `Gamepad`. Grip-up emits `release`. Tracking loss, input-source replacement,
+controller disconnect, reference-space reset that invalidates the target, or
+XR session end emits `cancel`.
 
 Ray activation and direct grab are distinct owners per hand. A single hand
 cannot own both simultaneously. Trusted XR Browser UI and the session-exit
 gesture outrank both. Hand tracking, gaze dwell, and arbitrary gestures are
 deferred.
 
-## 9. Focus and keyboard routing
+## 10. Focus and keyboard routing
 
 The Browser owns one focused world target per browsing context. Focus is
 granted only after an eligible user interaction or keyboard traversal and only
@@ -262,23 +373,30 @@ Keyboard routing precedence is:
 
 Tab participates in Browser-owned focus traversal and can always reach trusted
 Browser UI. A package can suggest target order within its instance using stable
-integer order values, but cannot trap traversal. Enter/Space activates the
-focused target. Key repeat is delivered only for actions that declare repeat;
-text repeat remains native editing behavior.
+integer order values, but cannot trap traversal. Enter/Space keydown records
+the currently focused eligible target; keyup activates only if that original
+target remains focused and valid. Repeated keydown events never create
+duplicate activation and are ignored unless the Browser timer is applying the
+target's section 5 `while-held` policy. Focus or ownership loss before keyup
+emits `cancel`, and the later keyup is ignored. Accessibility activation uses
+the same synthetic Press/Release pair. Text repeat remains native editing
+behavior.
 
-Focus emits `focus` and `blur` lifecycle notifications outside the six action
-set. Blur first cancels active interaction and composition state, then releases
-focus-bound leases. World pause, unload, navigation, worker failure, and target
-removal force the same cleanup.
+Focus and blur use the versioned `kind: "focus"` messages from section 4 rather
+than overloading the six actions. Blur first sends the final edit
+commit/cancel, cancels active interaction, and then releases focus-bound
+leases. World pause, unload, navigation, worker failure, and target removal
+force the same ordered cleanup.
 
-## 10. Pointer lock and keyboard lock
+## 11. Pointer lock and keyboard lock
 
-`webspace.input.pointer-lock` authorizes only a request to the Browser. The
+`webspace.input.pointer-lock` authorizes only a `kind: "request"` to the Browser. The
 Browser may present or combine that request with a trusted Play control. Actual
 acquisition requires a fresh user gesture and user-agent approval. A denied,
-unsupported, or interrupted request returns `not-granted`,
-`unsupported`, or `interrupted`; the Browser retains unlocked point/activate
-controls and does not retry without another gesture.
+unsupported, or interrupted request returns the correlated section 4
+`kind: "result"` with status `denied`, `unsupported`, or `interrupted`; the
+Browser retains unlocked point/activate controls and does not retry without
+another gesture.
 
 Escape, trusted menu activation, navigation, focus transfer to editable UI,
 visibility loss, or world teardown releases pointer lock and cancels affected
@@ -291,7 +409,7 @@ predictably, but the launch profile denies it. The Browser does not call
 fullscreen coupling, visible trusted indication, denial fallback, and
 guaranteed unlock before enabling it.
 
-## 11. Dragging, grabbing, capture, and cancellation
+## 12. Dragging, grabbing, capture, and cancellation
 
 Pointer capture has one Browser-owned interaction record:
 
@@ -319,15 +437,18 @@ through the same idempotent cancel path.
 
 Grab acquisition uses Browser-local pose and declared target volumes, with a
 larger release radius permitted to prevent jitter. It emits a target id and
-bounded semantic controls, not raw poses. Contested or authoritative ownership
-is resolved by the world simulation/authority after receiving intent; local
-capture never proves ownership.
+bounded semantic controls, not raw poses. XR direct manipulation is precisely
+the `grab` start followed by `drag` updates with bounded `local-meters`
+position, normalized orientation, axes, and semantic buttons defined in section
+9. Contested or authoritative ownership is resolved by the world
+simulation/authority after receiving intent; local capture never proves
+ownership.
 
-## 12. Text selection, clipboard, and composition
+## 13. Text selection, clipboard, and composition
 
 Text editing uses a Browser-owned native control associated with one declared
 `textEditable` target and a granted `webspace.input.text-edit` capability. The
-package receives bounded edit snapshots:
+package receives bounded `kind: "edit"` snapshots:
 
 ```js
 {
@@ -369,7 +490,7 @@ Clipboard behavior is narrow:
 - background reads, polling, arbitrary MIME types, files, images, and silent
   writes are not exposed.
 
-## 13. Ownership, precedence, and arbitration
+## 14. Ownership, precedence, and arbitration
 
 The complete precedence order is:
 
@@ -398,7 +519,7 @@ Packages cannot arbitrate globally. They receive only events for targets they
 own after Browser arbitration. Inactive worlds and unfocused object instances
 receive no local input.
 
-## 14. Browser UI, accessibility, and universal escape
+## 15. Browser UI, accessibility, and universal escape
 
 Trusted Browser UI must remain reachable by pointer, touch, keyboard, gamepad,
 and XR. It renders above world content, owns its listeners, and is never
@@ -415,7 +536,7 @@ state, reduced-motion-compatible feedback, and non-lock fallbacks. Semantic
 actions do not require a particular device, and packages must not infer
 disability or device identity from the normalized source.
 
-## 15. Failure, denial, fallback, and release behavior
+## 16. Failure, denial, fallback, and release behavior
 
 Failures are local to the affected request or interaction unless P2 says a
 required capability denial prevents package startup.
@@ -441,7 +562,7 @@ Keyboard Lock remains denied; clipboard denial leaves text unchanged; XR
 failure retains flat-screen entry; and focus failure leaves locomotion
 available without delivering text to the world.
 
-## 16. Implementation reconciliation
+## 17. Implementation reconciliation
 
 The reference Browser already implements parts of this contract:
 
@@ -485,7 +606,7 @@ Contradictions and gaps:
 These gaps belong to R3 implementation. This proposal does not rewrite those
 files.
 
-## 17. Acceptance tests
+## 18. Acceptance tests
 
 R3 conformance requires behavioral tests, not only source-pattern assertions.
 
@@ -507,7 +628,7 @@ Cross-cutting tests:
 - each of `point`, `activate`, `grab`, `drag`, `release`, and `cancel` is
   independently observable;
 - Browser UI, native editing, world interactions, placed content, and movement
-  controls obey the section 13 ordering with no duplicate delivery;
+  controls obey the section 14 ordering with no duplicate delivery;
 - temporary drag lock starts only after threshold and always clears on release,
   cancel, blur, visibility loss, target removal, crash, unload, and navigation;
 - capability request/grant/deny/revoke/cleanup stops the gated operation and
@@ -519,6 +640,14 @@ Cross-cutting tests:
   Enter during composition, blur cancel/commit, and no intermediate chat send;
 - malformed envelopes, non-finite/out-of-range coordinates, duplicate sequence,
   inactive targets, and unknown versions fail closed;
+- boundary tests cover every `target`, `request`, `interaction`, `focus`,
+  `edit`, and `result` direction, schema, ordering rule, correlation,
+  duplicate/replay case, lifecycle cleanup, and teardown race;
+- mouse, touch, keyboard, gamepad, XR-ray, and accessibility activation each
+  prove Press records the original target, Release revalidates it, interruption
+  cancels it, and repeat never duplicates activation unless `while-held`;
+- XR direct grab proves `grab` start, bounded `local-meters` `drag` updates,
+  normalized axes/buttons, and release/cancel without raw pose leakage;
 - keyboard-only and reduced-motion paths retain visible focus and trusted exit.
 
 At least one real-browser automated test is required for Pointer Lock/focus,
@@ -526,7 +655,7 @@ touch/visual viewport text, clipboard denial, and composition because DOM stubs
 cannot prove user-agent permission or editing behavior. XR may use an emulator
 plus one named-device smoke test.
 
-## 18. Migration notes
+## 19. Migration notes
 
 R3 should migrate in bounded steps:
 
@@ -553,7 +682,7 @@ continue through the compatibility adapter until the announced removal
 version. No silent semantic change is permitted inside the same contract
 version.
 
-## 19. Deferred work and non-goals
+## 20. Deferred work and non-goals
 
 Deferred beyond the launch profile:
 
@@ -574,7 +703,7 @@ Deferred beyond the launch profile:
 These deferrals do not weaken Browser ownership, cleanup, universal escape, or
 the six semantic launch actions.
 
-## 20. Security and privacy analysis
+## 21. Security and privacy analysis
 
 - A malicious target cannot capture off-target input unless the Browser has an
   active record created by an eligible user interaction.
@@ -594,7 +723,7 @@ the six semantic launch actions.
 - Sequence values prevent accidental local duplicate handling but are not
   replay protection for networking.
 
-## 21. Decision summary
+## 22. Decision summary
 
 The launch profile adopts:
 
