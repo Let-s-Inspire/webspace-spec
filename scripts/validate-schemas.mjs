@@ -361,6 +361,12 @@ const requiredId1StorageClauses = [
   "`webspacebrowser-trusted-local-identity-v1` IndexedDB database",
   "An error or blocked deletion fails closed",
   "does not advertise ID1 and remains `anonymous`",
+  "The restricted broker must support `identity.request`",
+  "fresh 32-byte server challenge",
+  "exactly `webspace.identity.proof`",
+  "Browser-profile-wide\nexclusive lock",
+  "Delegated-key issuance participates in the same exclusive ordering",
+  "trusted Browser client surface",
 ];
 for (const clause of requiredId1StorageClauses) {
   if (!id1Contract.includes(clause)) {

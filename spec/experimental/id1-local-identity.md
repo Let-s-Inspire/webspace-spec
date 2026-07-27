@@ -135,6 +135,51 @@ object packages through the production loader and prove that they can neither
 read persisted private material nor use any discovered key for signing,
 including after enumerating and opening same-origin IndexedDB databases.
 
+### World-facing proof request
+
+The restricted broker must support `identity.request` with a request detail
+containing the supported interface version, level `world-pseudonym`, an exact
+canonical HTTPS audience origin, and a fresh 32-byte server challenge. Invalid
+sizes, levels, versions, audiences, or repeated challenges fail with stable
+errors.
+
+A successful response contains level `world-pseudonym`, the stable world
+pseudonym ID, canonical world, audience, canonical base64url challenge, expiry,
+and the delegation/proof artifacts defined above. The delegation scope is
+exactly `webspace.identity.proof`, its parent is the world pseudonym, and its
+lifetime is at most 60 seconds. The proof payload is the exact challenge bytes.
+The active broker instance tracks accepted challenges through expiry and
+rejects reuse for the same world and audience. Challenge freshness remains server-authoritative: the
+world server generates unpredictable challenges, enforces its bounded
+lifetime, and consumes each challenge once.
+
+The response contains no private or signing key. Unknown operations remain
+unsupported, and root export or either reset operation remains denied to
+packages.
+
+## Browser-controlled identity controls
+
+The trusted Browser client surface must let Browser UI inspect the active
+world's pseudonym and root public identity, rotate only the active-world
+pseudonym, and perform a full local reset. These operations are not transferred
+to package workers. Scoped reset leaves the root and other worlds unchanged;
+full reset rotates the root and every world pseudonym.
+
+## Cross-context ordering
+
+Every read-modify-write identity operation must hold one Browser-profile-wide
+exclusive lock across refreshing the persisted record, computing the
+replacement, durable persistence, and publishing the new live record. An
+in-process promise queue alone is insufficient. ID1 requires a cross-context
+lock facility such as the Web Locks API; if unavailable, ID1 is unsupported
+and packages activate anonymously.
+
+Delegated-key issuance participates in the same exclusive ordering as world
+and full reset. If issuance wins the lock first, a later reset retires that
+delegation under the replacement parent. If reset wins first, issuance uses
+the replacement parent. Concurrent different-world creation must preserve
+both entries, and concurrent same-world creation must return one pseudonym.
+
 ## Legacy storage migration
 
 Before identity becomes usable or any package activates, the trusted Window
@@ -152,8 +197,8 @@ ID1 requires Web Crypto Ed25519 key generation, signing, verification, and
 PKCS #8 import/export sufficient to create the Window-only persisted
 representation and import live private keys as non-extractable. It also
 requires durable Window `localStorage`, dedicated-worker package confinement
-without `localStorage`, and successful deletion of the legacy identity
-IndexedDB database.
+without `localStorage`, a Browser-profile-wide exclusive lock, and successful
+deletion of the legacy identity IndexedDB database.
 
 A Browser lacking any required crypto, Window-only storage, worker isolation,
 or migration behavior does not advertise ID1 and remains `anonymous` under
@@ -175,7 +220,12 @@ An ID1 implementation must deterministically test:
 8. real world/object package-loader isolation from provider and root custody,
    including IndexedDB enumeration, record reads, and attempted signing;
 9. deletion of legacy identity IndexedDB before activation, with blocked or
-   failed deletion and unavailable Window-only storage failing closed.
+   failed deletion and unavailable Window-only storage failing closed;
+10. positive world-pseudonym request/proof verification and challenge replay
+    rejection through the production package loader;
+11. trusted inspection plus scoped/full reset controls;
+12. separate-context same/different-world mutation preservation and deterministic
+    reset-versus-delegation ordering.
 
 Schema fixtures validate artifact shape, canonical encoding and normalization,
 and the Ed25519 parent signature. Passing them does not establish full
