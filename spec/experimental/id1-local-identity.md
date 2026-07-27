@@ -46,6 +46,37 @@ and binds:
 - a sorted, unique, non-empty set of scopes;
 - integer issuance and expiry instants, with issuance before expiry.
 
+`parentPublicKey` and `delegatedPublicKey` are the 32-byte RFC 8032 Ed25519
+public-key encodings. `parentSignature` is a 64-byte RFC 8032 Ed25519
+signature. All three are encoded as canonical, unpadded RFC 4648 base64url:
+only `A-Z`, `a-z`, `0-9`, `-`, and `_` occur, no `=` padding occurs, and
+decoding then unpadded-base64url re-encoding must reproduce the exact string.
+
+The exact bytes covered by `parentSignature` are UTF-8 encoding of the ASCII
+domain-separation prefix:
+
+```
+webspace-id1-delegation:v1:
+```
+
+immediately followed, with no delimiter or whitespace, by UTF-8 encoding of
+the JSON serialization below. Property order is exactly as shown. Strings use
+JSON escaping, numbers are JSON decimal safe integers, and `scopes` is already
+sorted lexicographically by Unicode code point:
+
+```json
+{"version":1,"algorithm":"Ed25519","parentPublicKey":"<value>","delegatedPublicKey":"<value>","canonicalWorld":"<value>","audience":"<value>","scopes":["<value>"],"issuedAt":0,"expiresAt":1}
+```
+
+The serialized object contains exactly those nine claims and omits
+`parentSignature`. Verifiers must reconstruct these bytes rather than trusting
+the input artifact's property order or whitespace.
+
+The valid deterministic fixture is reproducible from RFC 8410 Ed25519 private
+seed bytes `00 01 ... 1f` for the parent and `20 21 ... 3f` for the delegated
+key. These seeds exist only as public test-vector inputs and are not an ID1
+storage format.
+
 Issuance rejects invalid or non-canonical world identity, audience, scope, or
 lifetime inputs. Signing fails at or after expiry according to the broker's
 clock. Verification fails closed for malformed encodings, invalid parent or
@@ -104,8 +135,9 @@ An ID1 implementation must deterministically test:
 7. scoped world reset and full local reset effects;
 8. real world/object package-loader isolation from provider and root custody.
 
-Schema fixtures validate artifact shape and normalization semantics. Passing
-the schema does not establish signature validity or behavioral conformance.
+Schema fixtures validate artifact shape, canonical encoding and normalization,
+and the Ed25519 parent signature. Passing them does not establish full
+behavioral conformance.
 
 ## Explicit exclusions
 

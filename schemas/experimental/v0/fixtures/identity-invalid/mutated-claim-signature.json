@@ -4,7 +4,7 @@
   "parentPublicKey": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
   "delegatedPublicKey": "Kay64UG8yvCyLhqU000LxzYeUm0L_hLIl5S8kyKWbdc",
   "canonicalWorld": "webspace-world:v1:https://publisher.example/example.world",
-  "audience": "https://audience.example",
+  "audience": "https://mutated.example",
   "scopes": ["identity.prove", "profile.read"],
   "issuedAt": 1000,
   "expiresAt": 2000,

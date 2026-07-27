@@ -1,12 +1,12 @@
 {
   "version": 1,
   "algorithm": "Ed25519",
-  "parentPublicKey": "AQID",
-  "delegatedPublicKey": "BAUG",
+  "parentPublicKey": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
+  "delegatedPublicKey": "__79_Pv6-fj39vX08_Lx8O_u7ezr6uno5-bl5OPi4eA",
   "canonicalWorld": "webspace-world:v1:https://publisher.example/example.world",
   "audience": "https://audience.example/path",
   "scopes": ["identity.prove"],
   "issuedAt": 1000,
   "expiresAt": 2000,
-  "parentSignature": "BwgJ"
+  "parentSignature": "jQoQO7ukVf0Ge62IHZg2ccoLKPxgt6RarAD4w55uObShWSs9Goc_e3WqlnkMk3ETYqTr1gXCgvMSHO93XedkBA"
 }

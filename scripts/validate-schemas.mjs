@@ -2,6 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { createPublicKey, verify } from "node:crypto";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 
@@ -271,6 +272,56 @@ function validateIdentitySemantics(delegation) {
     JSON.stringify([...delegation.scopes].sort())
   ) {
     errors.push("scopes must be sorted");
+  }
+  function decodeCanonicalBase64url(value, length, label) {
+    const bytes = Buffer.from(value, "base64url");
+    if (bytes.length !== length || bytes.toString("base64url") !== value) {
+      errors.push(`${label} is not canonical unpadded base64url for ${length} bytes`);
+    }
+    return bytes;
+  }
+  const parentKey = decodeCanonicalBase64url(
+    delegation.parentPublicKey,
+    32,
+    "parentPublicKey",
+  );
+  decodeCanonicalBase64url(
+    delegation.delegatedPublicKey,
+    32,
+    "delegatedPublicKey",
+  );
+  const signature = decodeCanonicalBase64url(
+    delegation.parentSignature,
+    64,
+    "parentSignature",
+  );
+  const signedClaims = {
+    version: delegation.version,
+    algorithm: delegation.algorithm,
+    parentPublicKey: delegation.parentPublicKey,
+    delegatedPublicKey: delegation.delegatedPublicKey,
+    canonicalWorld: delegation.canonicalWorld,
+    audience: delegation.audience,
+    scopes: delegation.scopes,
+    issuedAt: delegation.issuedAt,
+    expiresAt: delegation.expiresAt,
+  };
+  try {
+    const spkiPrefix = Buffer.from("302a300506032b6570032100", "hex");
+    const publicKey = createPublicKey({
+      key: Buffer.concat([spkiPrefix, parentKey]),
+      format: "der",
+      type: "spki",
+    });
+    const signedBytes = Buffer.from(
+      `webspace-id1-delegation:v1:${JSON.stringify(signedClaims)}`,
+      "utf8",
+    );
+    if (!verify(null, signedBytes, publicKey, signature)) {
+      errors.push("parentSignature does not verify over canonical delegation bytes");
+    }
+  } catch {
+    errors.push("parentSignature verification failed");
   }
   return errors;
 }
