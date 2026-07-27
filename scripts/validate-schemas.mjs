@@ -347,6 +347,41 @@ for (const category of ["identity-valid", "identity-invalid"]) {
   }
 }
 
+const id1Contract = await readFile(
+  path.join(root, "spec", "experimental", "id1-local-identity.md"),
+  "utf8",
+);
+const requiredId1StorageClauses = [
+  "Browser-controlled, Window-only storage",
+  "non-extractable `CryptoKey`",
+  "canonical unpadded base64url",
+  "PKCS #8 private-key bytes",
+  "Package execution is confined to dedicated workers",
+  "`localStorage` is unavailable",
+  "`webspacebrowser-trusted-local-identity-v1` IndexedDB database",
+  "An error or blocked deletion fails closed",
+  "does not advertise ID1 and remains `anonymous`",
+];
+for (const clause of requiredId1StorageClauses) {
+  if (!id1Contract.includes(clause)) {
+    failures += 1;
+    console.error(`FAIL ID1 storage contract is missing ${JSON.stringify(clause)}`);
+  }
+}
+const forbiddenId1StorageClauses = [
+  "structured cloning of non-extractable `CryptoKey` objects into persistent",
+  "fall back to extractable keys, JavaScript seed storage",
+];
+for (const clause of forbiddenId1StorageClauses) {
+  if (id1Contract.includes(clause)) {
+    failures += 1;
+    console.error(`FAIL ID1 storage contract retains obsolete clause ${JSON.stringify(clause)}`);
+  }
+}
+if (failures === 0) {
+  console.log("PASS ID1 Window-only custody and legacy-migration contract");
+}
+
 if (failures > 0) {
   console.error(`\n${failures} fixture expectation(s) failed`);
   process.exit(1);
