@@ -167,15 +167,19 @@ The common fields have one meaning:
   before inspecting its payload.
 - `sequence` is a positive, monotonically increasing integer per sender and
   package instance. The Browser and package maintain independent sequences.
-  The ordered isolation channel preserves send order; a sequence at or below
-  the last accepted value is a duplicate/replay and is rejected. Gaps are
-  allowed and development-logged.
-- `targetId` is required for target-scoped interaction, focus, edit, and
-  request messages; it is otherwise `null`.
+  The ordered isolation channel preserves send order. Gaps are allowed and
+  development-logged. Duplicate precedence is defined in section 4.3; the
+  simple "discard at or below the last accepted sequence" rule applies to
+  Browser-to-package messages, not before package-request idempotency lookup.
+- `targetId` is required for `target`, `interaction`, `focus`, and `edit`.
+  For `request` and `result`, its required/null scope is operation-specific
+  (section 4.2).
 - `requestId` is a package-generated, instance-unique string on `target` or
-  `request` and the correlated `result`; it is `null` for other kinds. Reusing
-  a completed id returns the current result without repeating the operation. A
-  bounded pending request limit prevents exhaustion.
+  `request` and the correlated `result`; it is `null` for other kinds. Its
+  canonical form is `r:<ordinal>:<nonce>`, where `ordinal` is a positive,
+  monotonically increasing integer per package instance and `nonce` is a
+  bounded opaque token. Reusing a completed id follows section 4.3. Bounded
+  pending and retained-result windows prevent exhaustion.
 - `payload` must contain only fields allowed for its `kind`; sizes, strings,
   finite numbers, enum values, target lifetime, current grant, and current
   owner are validated before state changes or delivery.
@@ -193,7 +197,7 @@ For `kind: "interaction"`:
   not exposed.
 - `coordinates` is absent for `none`, `{ kind: "surface-uv", x, y }` with
   `x/y` clamped to `[0, 1]`, or bounded local manipulation coordinates defined
-  in section 12.
+  in section 9.
 - `controls` contains only normalized axes in `[-1, 1]` and declared semantic
   button names. It never contains raw device arrays.
 - `modifiers` contains applicable `alt`, `control`, `meta`, and `shift`
@@ -214,13 +218,30 @@ committed post-composition snapshot uses `state: "commit"`,
 `state: "cancel"` and never invents committed text.
 
 Every package `target` mutation or `request` receives exactly one initial
-`result` unless package teardown destroys the channel first. `status` is
-`granted`, `denied`, `unsupported`, `interrupted`, or `invalid`. `grantId` and
-`expiresAt` are present only when a scoped lease is granted. A granted,
+`result` unless package teardown destroys the channel first. `status` uses the
+normative result-status enum in section 16; `reason` uses the separate reason
+enum there. `grantId` and `expiresAt` are present only when a scoped lease is
+granted. A granted,
 still-live request may later receive one revocation `result` with the original
 `requestId`, `status: "interrupted"`, and reason `revoked`, followed by required
 cleanup messages in the ordering above. That revocation replaces the current
 result returned for later idempotent reuse.
+
+Request scope is normative:
+
+| Operation | `targetId` |
+|---|---|
+| `focus-text` | required; identifies the declared `textEditable` target to focus |
+| `blur-text` | required; must equal the currently focused text target |
+| `clipboard-write` | required; identifies the focused target whose selected plain text is copied/cut |
+| `pointer-lock` | must be `null`; this is a package-instance request initiated through trusted Browser UI, not authority over a target |
+| `target` register/update/remove | required in the envelope and must equal the declaration/removal id |
+| future capability operation | its defining proposal must say `required` or `null`; an unspecified scope is `invalid` |
+
+A `result` echoes the request's `targetId`, including `null` for
+`pointer-lock`. A target-scoped request with `null`, an instance-scoped request
+with a target, or a mismatched target is `status: "invalid"`, reason
+`invalid-target`.
 
 `target` registration must succeed before that target can receive focus or
 interaction. Invalid package-to-Browser messages receive an `invalid` result
@@ -229,6 +250,47 @@ development-logged. Unknown fields are ignored only when the v0 kind explicitly
 permits extensions; otherwise they fail validation. Browser teardown stops all
 delivery after completing best-effort cancel/blur messages and does not wait
 for package acknowledgement.
+
+### 4.3 Duplicate, replay, and idempotency precedence
+
+For incoming package `target` and `request` messages, idempotency lookup
+**precedes** ordinary sequence rejection:
+
+1. The Browser minimally validates `version`, `kind`, `sequence`, `requestId`
+   syntax/ordinal, `targetId`, operation name, and bounded payload encoding
+   without performing the operation. It computes a canonical fingerprint over
+   `kind`, `targetId`, operation, and normalized declaration/parameters.
+2. If `requestId` is present in the retained-result window and the fingerprint
+   is identical, the Browser returns the cached **current** `result` even when
+   the message repeats the original sequence. It does not perform the operation
+   again and does not advance the accepted package sequence. The returned
+   result carries a fresh Browser sequence so package-side duplicate filtering
+   cannot discard a response to a legitimate retransmission.
+3. If that known `requestId` has a different kind, target, operation, or
+   normalized declaration/parameters, the Browser returns `status: "invalid"`,
+   reason `request-id-conflict`. It performs neither the old nor new operation
+   and does not replace the cached result.
+4. If the id is unknown but its request ordinal is at or below the retained
+   window's low-water mark, or its sequence is at or below the last accepted
+   package sequence, the Browser returns `status: "invalid"`, reason
+   `expired-request`. It never repeats an operation whose cache record may have
+   expired.
+5. Only an unknown id with a new ordinal and a sequence above the last accepted
+   package sequence can proceed to full validation and operation. The Browser
+   stores its canonical fingerprint and result in the bounded window. Invalid
+   new requests also consume their ordinal/sequence and cache the invalid
+   result, preventing retry side effects.
+
+The retained-result window is bounded by Browser policy in count and time and
+publishes neither limit to package code as authority. The Browser retains the
+ordinal low-water mark after result eviction for the package instance's
+lifetime, so an evicted id remains detectably expired.
+
+For Browser-to-package `interaction`, `focus`, `edit`, and `result` messages,
+the package discards a sequence at or below the last accepted Browser sequence.
+Those messages never trigger an operation merely by being received twice. A
+sequence gap is allowed and may prompt diagnostics or application recovery, but
+does not relax duplicate handling.
 
 ## 5. Shared activation lifecycle
 
@@ -484,7 +546,8 @@ Clipboard behavior is narrow:
 
 - paste accepts only `text/plain` from a trusted native paste event while the
   editor is focused; denial or unavailable clipboard data leaves the value
-  unchanged and reports `not-granted` or `unsupported`;
+  unchanged and reports `status: "denied"` with reason `user-denied` or
+  `policy-denied`, or `status: "unsupported"` with reason `unsupported-api`;
 - copy/cut requires a user gesture and `webspace.input.clipboard-write`; the
   Browser supplies only the selected plain text to the platform operation;
 - background reads, polling, arbitrary MIME types, files, images, and silent
@@ -541,15 +604,39 @@ disability or device identity from the normalized source.
 Failures are local to the affected request or interaction unless P2 says a
 required capability denial prevents package startup.
 
-| Code | Meaning | Required Browser behavior |
+`result.status` has this normative enum:
+
+| Status | Meaning |
+|---|---|
+| `granted` | the operation completed or its scoped lease became active |
+| `denied` | the operation was understood but policy, the user, arbitration, or a bounded resource limit refused it |
+| `unsupported` | the requested trusted API, device, or mode is unavailable |
+| `interrupted` | a previously accepted or granted operation ended because its authority, owner, target, device, or lifecycle precondition was lost |
+| `invalid` | the request cannot be considered or repeated safely because its envelope, scope, target, idempotency identity, or payload is invalid or expired |
+
+`result.reason` is `null` for `granted`. For every other status it is one of
+this separate normative enum:
+
+| Reason | Compatible status | Meaning and required Browser behavior |
 |---|---|---|
-| `not-granted` | capability or user permission denied | do not perform operation; retain safe unlocked/native fallback |
-| `unsupported` | API/device/mode unavailable | retain supported semantic mappings and explain unavailable mode |
-| `invalid-target` | target missing, inactive, or lacks action | drop request; cancel an existing record for that target |
-| `conflict` | higher-priority owner already holds source | do not steal; report conflict for explicit requests |
-| `interrupted` | focus/visibility/session/device changed | cancel and idempotently release capture, locks, focus, and routed state |
-| `instance-gone` | package paused, unloaded, or crashed | stop delivery and perform lifecycle cleanup |
-| `invalid-event` | bad version, non-finite coordinate, size/schema violation | reject event/request and development-log bounded detail |
+| `policy-denied` | `denied` | world, package-grant, or Browser policy refused the operation; retain the safe fallback |
+| `user-denied` | `denied` | the user refused or did not complete the trusted prompt/gesture; retain the safe fallback |
+| `conflict` | `denied` | a higher-priority owner already holds the source; do not steal it |
+| `rate-limited` | `denied` | a bounded pending, event-rate, or resource limit was reached; do not queue unbounded work |
+| `unsupported-api` | `unsupported` | the API, device, or mode is unavailable; retain supported semantic mappings |
+| `revoked` | `interrupted` | the capability grant was revoked; cancel and release every state derived from it |
+| `focus-lost` | `interrupted` | document, world, target, or text focus was lost; cancel and release affected state |
+| `visibility-lost` | `interrupted` | the document or world ceased to be visible; cancel and release affected state |
+| `device-disconnected` | `interrupted` | the input device disconnected; cancel its held records |
+| `tracking-lost` | `interrupted` | XR tracking or session ownership was lost; cancel its held records |
+| `target-removed` | `interrupted` | the active target was removed or became inactive; cancel its records |
+| `instance-gone` | `interrupted` | the package paused, unloaded, or crashed; stop delivery and perform lifecycle cleanup |
+| `navigation` | `interrupted` | navigation replaced the world or package instance; perform teardown cleanup |
+| `teardown` | `interrupted` | explicit teardown ended the instance; perform teardown cleanup |
+| `request-id-conflict` | `invalid` | a retained `requestId` was reused for a different fingerprint; perform neither operation |
+| `expired-request` | `invalid` | an unknown/stale request is outside the idempotency window or repeats an accepted sequence; never repeat the operation |
+| `invalid-target` | `invalid` | the target is missing, inactive, mismatched, wrongly scoped, or lacks the requested action |
+| `invalid-message` | `invalid` | version, envelope, finite-number, size, enum, or payload validation failed; development-log bounded detail |
 
 World unload, teardown, worker crash, navigation, visibility loss, document blur,
 XR session end, device disconnect, target removal, and grant revocation all
