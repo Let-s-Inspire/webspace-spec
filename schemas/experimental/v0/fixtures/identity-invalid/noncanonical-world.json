@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "algorithm": "Ed25519",
+  "parentPublicKey": "AQID",
+  "delegatedPublicKey": "BAUG",
+  "canonicalWorld": "webspace-world:v1:https://PUBLISHER.example:443/example.world",
+  "audience": "https://audience.example",
+  "scopes": ["identity.prove"],
+  "issuedAt": 1000,
+  "expiresAt": 2000,
+  "parentSignature": "BwgJ"
+}

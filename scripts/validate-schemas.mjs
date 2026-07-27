@@ -19,6 +19,7 @@ const schemaFiles = [
   "object.schema.json",
   "origin-bridge-message.schema.json",
   "capability-negotiation.schema.json",
+  "local-identity-delegation.schema.json",
 ];
 const schemas = await Promise.all(
   schemaFiles.map((file) => readJson(path.join(schemaDir, file))),
@@ -46,6 +47,9 @@ const validators = {
   ),
   capability: ajv.getSchema(
     "https://webspacebrowser.com/schemas/experimental/v0/capability-negotiation.schema.json",
+  ),
+  identity: ajv.getSchema(
+    "https://webspacebrowser.com/schemas/experimental/v0/local-identity-delegation.schema.json",
   ),
 };
 
@@ -224,6 +228,70 @@ for (const category of ["capability-valid", "capability-invalid"]) {
       }
     } else {
       console.error("  invalid capability fixture unexpectedly validated");
+    }
+  }
+}
+
+function validateIdentitySemantics(delegation) {
+  const errors = [];
+  if (!validators.identity(delegation)) {
+    return validators.identity.errors.map(
+      (error) => `${error.instancePath || "/"} ${error.message}`,
+    );
+  }
+  const worldPrefix = "webspace-world:v1:";
+  const worldRest = delegation.canonicalWorld.slice(worldPrefix.length);
+  const separator = worldRest.lastIndexOf("/");
+  const originText = worldRest.slice(0, separator);
+  try {
+    const origin = new URL(originText);
+    if (origin.protocol !== "https:" || origin.origin !== originText) {
+      errors.push("canonicalWorld publisher origin is not canonical HTTPS");
+    }
+  } catch {
+    errors.push("canonicalWorld publisher origin is invalid");
+  }
+  try {
+    const audience = new URL(delegation.audience);
+    if (
+      audience.protocol !== "https:" ||
+      audience.origin !== delegation.audience ||
+      audience.pathname !== "/"
+    ) {
+      errors.push("audience is not an exact canonical HTTPS origin");
+    }
+  } catch {
+    errors.push("audience is invalid");
+  }
+  if (delegation.issuedAt >= delegation.expiresAt) {
+    errors.push("issuedAt must precede expiresAt");
+  }
+  if (
+    JSON.stringify(delegation.scopes) !==
+    JSON.stringify([...delegation.scopes].sort())
+  ) {
+    errors.push("scopes must be sorted");
+  }
+  return errors;
+}
+
+for (const category of ["identity-valid", "identity-invalid"]) {
+  for (const file of await fixtureFiles(category)) {
+    const delegation = await readJson(file);
+    const errors = validateIdentitySemantics(delegation);
+    const expectedValid = category === "identity-valid";
+    const passed = expectedValid ? errors.length === 0 : errors.length > 0;
+    const label = path.relative(root, file);
+    if (passed) {
+      console.log(`PASS ${label}`);
+      continue;
+    }
+    failures += 1;
+    console.error(`FAIL ${label}`);
+    if (expectedValid) {
+      for (const error of errors) console.error(`  ${error}`);
+    } else {
+      console.error("  invalid identity fixture unexpectedly validated");
     }
   }
 }
