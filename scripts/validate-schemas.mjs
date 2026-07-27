@@ -2,6 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { createPublicKey, verify } from "node:crypto";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 
@@ -19,6 +20,7 @@ const schemaFiles = [
   "object.schema.json",
   "origin-bridge-message.schema.json",
   "capability-negotiation.schema.json",
+  "local-identity-delegation.schema.json",
 ];
 const schemas = await Promise.all(
   schemaFiles.map((file) => readJson(path.join(schemaDir, file))),
@@ -46,6 +48,9 @@ const validators = {
   ),
   capability: ajv.getSchema(
     "https://webspacebrowser.com/schemas/experimental/v0/capability-negotiation.schema.json",
+  ),
+  identity: ajv.getSchema(
+    "https://webspacebrowser.com/schemas/experimental/v0/local-identity-delegation.schema.json",
   ),
 };
 
@@ -226,6 +231,161 @@ for (const category of ["capability-valid", "capability-invalid"]) {
       console.error("  invalid capability fixture unexpectedly validated");
     }
   }
+}
+
+function validateIdentitySemantics(delegation) {
+  const errors = [];
+  if (!validators.identity(delegation)) {
+    return validators.identity.errors.map(
+      (error) => `${error.instancePath || "/"} ${error.message}`,
+    );
+  }
+  const worldPrefix = "webspace-world:v1:";
+  const worldRest = delegation.canonicalWorld.slice(worldPrefix.length);
+  const separator = worldRest.lastIndexOf("/");
+  const originText = worldRest.slice(0, separator);
+  try {
+    const origin = new URL(originText);
+    if (origin.protocol !== "https:" || origin.origin !== originText) {
+      errors.push("canonicalWorld publisher origin is not canonical HTTPS");
+    }
+  } catch {
+    errors.push("canonicalWorld publisher origin is invalid");
+  }
+  try {
+    const audience = new URL(delegation.audience);
+    if (
+      audience.protocol !== "https:" ||
+      audience.origin !== delegation.audience ||
+      audience.pathname !== "/"
+    ) {
+      errors.push("audience is not an exact canonical HTTPS origin");
+    }
+  } catch {
+    errors.push("audience is invalid");
+  }
+  if (delegation.issuedAt >= delegation.expiresAt) {
+    errors.push("issuedAt must precede expiresAt");
+  }
+  if (
+    JSON.stringify(delegation.scopes) !==
+    JSON.stringify([...delegation.scopes].sort())
+  ) {
+    errors.push("scopes must be sorted");
+  }
+  function decodeCanonicalBase64url(value, length, label) {
+    const bytes = Buffer.from(value, "base64url");
+    if (bytes.length !== length || bytes.toString("base64url") !== value) {
+      errors.push(`${label} is not canonical unpadded base64url for ${length} bytes`);
+    }
+    return bytes;
+  }
+  const parentKey = decodeCanonicalBase64url(
+    delegation.parentPublicKey,
+    32,
+    "parentPublicKey",
+  );
+  decodeCanonicalBase64url(
+    delegation.delegatedPublicKey,
+    32,
+    "delegatedPublicKey",
+  );
+  const signature = decodeCanonicalBase64url(
+    delegation.parentSignature,
+    64,
+    "parentSignature",
+  );
+  const signedClaims = {
+    version: delegation.version,
+    algorithm: delegation.algorithm,
+    parentPublicKey: delegation.parentPublicKey,
+    delegatedPublicKey: delegation.delegatedPublicKey,
+    canonicalWorld: delegation.canonicalWorld,
+    audience: delegation.audience,
+    scopes: delegation.scopes,
+    issuedAt: delegation.issuedAt,
+    expiresAt: delegation.expiresAt,
+  };
+  try {
+    const spkiPrefix = Buffer.from("302a300506032b6570032100", "hex");
+    const publicKey = createPublicKey({
+      key: Buffer.concat([spkiPrefix, parentKey]),
+      format: "der",
+      type: "spki",
+    });
+    const signedBytes = Buffer.from(
+      `webspace-id1-delegation:v1:${JSON.stringify(signedClaims)}`,
+      "utf8",
+    );
+    if (!verify(null, signedBytes, publicKey, signature)) {
+      errors.push("parentSignature does not verify over canonical delegation bytes");
+    }
+  } catch {
+    errors.push("parentSignature verification failed");
+  }
+  return errors;
+}
+
+for (const category of ["identity-valid", "identity-invalid"]) {
+  for (const file of await fixtureFiles(category)) {
+    const delegation = await readJson(file);
+    const errors = validateIdentitySemantics(delegation);
+    const expectedValid = category === "identity-valid";
+    const passed = expectedValid ? errors.length === 0 : errors.length > 0;
+    const label = path.relative(root, file);
+    if (passed) {
+      console.log(`PASS ${label}`);
+      continue;
+    }
+    failures += 1;
+    console.error(`FAIL ${label}`);
+    if (expectedValid) {
+      for (const error of errors) console.error(`  ${error}`);
+    } else {
+      console.error("  invalid identity fixture unexpectedly validated");
+    }
+  }
+}
+
+const id1Contract = await readFile(
+  path.join(root, "spec", "experimental", "id1-local-identity.md"),
+  "utf8",
+);
+const requiredId1StorageClauses = [
+  "Browser-controlled, Window-only storage",
+  "non-extractable `CryptoKey`",
+  "canonical unpadded base64url",
+  "PKCS #8 private-key bytes",
+  "Package execution is confined to dedicated workers",
+  "`localStorage` is unavailable",
+  "`webspacebrowser-trusted-local-identity-v1` IndexedDB database",
+  "An error or blocked deletion fails closed",
+  "does not advertise ID1 and remains `anonymous`",
+  "The restricted broker must support `identity.request`",
+  "fresh 32-byte server challenge",
+  "exactly `webspace.identity.proof`",
+  "Browser-profile-wide\nexclusive lock",
+  "Delegated-key issuance participates in the same exclusive ordering",
+  "trusted Browser client surface",
+];
+for (const clause of requiredId1StorageClauses) {
+  if (!id1Contract.includes(clause)) {
+    failures += 1;
+    console.error(`FAIL ID1 storage contract is missing ${JSON.stringify(clause)}`);
+  }
+}
+const forbiddenId1StorageClauses = [
+  "structured cloning of non-extractable `CryptoKey` objects into persistent",
+  "fall back to extractable keys, JavaScript seed storage",
+];
+for (const clause of forbiddenId1StorageClauses) {
+  if (id1Contract.includes(clause)) {
+    failures += 1;
+    console.error(`FAIL ID1 storage contract retains obsolete clause ${JSON.stringify(clause)}`);
+  }
+}
+if (failures === 0) {
+  console.log("PASS ID1 Window-only custody and legacy-migration contract");
 }
 
 if (failures > 0) {

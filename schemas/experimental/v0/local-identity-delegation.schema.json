@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webspacebrowser.com/schemas/experimental/v0/local-identity-delegation.schema.json",
+  "title": "Experimental ID1 local identity delegation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "algorithm",
+    "parentPublicKey",
+    "delegatedPublicKey",
+    "canonicalWorld",
+    "audience",
+    "scopes",
+    "issuedAt",
+    "expiresAt",
+    "parentSignature"
+  ],
+  "properties": {
+    "version": { "const": 1 },
+    "algorithm": { "const": "Ed25519" },
+    "parentPublicKey": { "$ref": "#/$defs/ed25519PublicKey" },
+    "delegatedPublicKey": { "$ref": "#/$defs/ed25519PublicKey" },
+    "canonicalWorld": {
+      "type": "string",
+      "pattern": "^webspace-world:v1:https://[^/?#]+/[a-z0-9](?:[a-z0-9-]{0,62}\\.)+[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "audience": { "type": "string", "format": "uri" },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$"
+      }
+    },
+    "issuedAt": { "type": "integer", "minimum": 0 },
+    "expiresAt": { "type": "integer", "minimum": 1 },
+    "parentSignature": { "$ref": "#/$defs/ed25519Signature" }
+  },
+  "$defs": {
+    "ed25519PublicKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$"
+    },
+    "ed25519Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{85}[AQgw]$"
+    }
+  }
+}

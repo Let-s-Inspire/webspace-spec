@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "algorithm": "Ed25519",
+  "parentPublicKey": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
+  "delegatedPublicKey": "__79_Pv6-fj39vX08_Lx8O_u7ezr6uno5-bl5OPi4eA",
+  "canonicalWorld": "webspace-world:v1:https://PUBLISHER.example:443/example.world",
+  "audience": "https://audience.example",
+  "scopes": ["identity.prove"],
+  "issuedAt": 1000,
+  "expiresAt": 2000,
+  "parentSignature": "P-zrXJyOw60ncpRWnWeqwna43rZuN9t_KZ6LScD76731F7NCeBztKqW5sGf2uI4kwiWbGWRkuO1w7WxG_gdUBA"
+}
