@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node scripts/validate-schemas.mjs",
-    "check:p1-cross-repo": "node scripts/check-p1-cross-repo-contract.mjs && node scripts/check-p1-container-contract.mjs && node scripts/check-p1-logical-equivalence.mjs && node scripts/check-p1-html-carrier.mjs",
+    "check:p1-cross-repo": "node scripts/check-p1-cross-repo-contract.mjs && node scripts/check-p1-container-contract.mjs && node scripts/check-p1-logical-equivalence.mjs && node scripts/check-p1-html-carrier.mjs && node scripts/check-p1-carrier-connector.mjs",
     "test:p1-cross-repo": "node --test scripts/check-p1-cross-repo-contract.test.mjs scripts/check-p1-container-contract.test.mjs scripts/check-p1-logical-equivalence.test.mjs scripts/check-p1-html-carrier.test.mjs"
   },
   "devDependencies": {
