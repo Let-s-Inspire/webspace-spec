@@ -1,5 +1,21 @@
 import assert from "node:assert/strict";
 
+function normalizeMarkdownProse(source) {
+  const output = [];
+  let previousWasProse = false;
+  for (const line of source.replace(/\r\n?/g, "\n").split("\n")) {
+    const blank = !line.trim();
+    const structural = /^\s*(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>|```|~~~|\|)/.test(line);
+    if (!blank && !structural && previousWasProse) {
+      output[output.length - 1] += ` ${line.trim()}`;
+    } else {
+      output.push(line);
+    }
+    previousWasProse = !blank && !structural;
+  }
+  return output.join("\n");
+}
+
 export function assertP1BDocumentationPolicy(source) {
   assert.match(
     source,
@@ -36,7 +52,7 @@ export function assertP1BDocumentationPolicy(source) {
     /Unpinned relayed packages receive a visible warning/i,
     "warning-only unpinned relay acquisition is forbidden",
   );
-  const warningOnlyRelaySentence = source
+  const warningOnlyRelaySentence = normalizeMarkdownProse(source)
     .split(/(?<=[.!?])\s+|\n+/)
     .find((sentence) => {
       const actions = Array.from(

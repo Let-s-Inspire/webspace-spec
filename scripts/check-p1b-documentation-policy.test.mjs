@@ -117,3 +117,11 @@ test("neither-nor coordination remains negated", () => {
   const clarified = `${canonical}\nRelay packages missing their integrity pins can neither be loaded nor used after a visible warning.\n`;
   assert.doesNotThrow(() => assertP1BDocumentationPolicy(clarified));
 });
+
+test("soft-wrapped warning-only relay permission is rejected", () => {
+  const mutated = `${canonical}\nRelay packages missing their integrity pins may be used\nafter a visible warning.\n`;
+  assert.throws(
+    () => assertP1BDocumentationPolicy(mutated),
+    /relay packages without integrity pins cannot proceed under warning-only policy/,
+  );
+});
