@@ -4,6 +4,10 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+// This is intentionally a local/supervisor cross-repository gate. The public
+// Spec repository must not receive credentials capable of cloning the private
+// Browser repository from pull-request-controlled workflow code. Callers must
+// provide an independently authorized checkout at the exact pinned commit.
 const specRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const baseline = JSON.parse(
   await readFile(path.join(specRoot, "p1-browser-baseline.json"), "utf8"),
