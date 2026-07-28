@@ -6,7 +6,10 @@ import { fileURLToPath } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { readFile } from "node:fs/promises";
-import { auditContainers } from "./lib/p1-container-contract.mjs";
+import {
+  auditCanonicalDefaultMutations,
+  auditContainers,
+} from "./lib/p1-container-contract.mjs";
 
 const specRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -25,6 +28,20 @@ test("actual Browser archive parser agrees with the canonical Spec profile and e
   const report = await auditContainers({ browserRoot, validateSpec });
   assert.deepEqual(report.positives, ["world", "object"]);
   assert.deepEqual(report.mutations, [
+    "entry count",
+    "compressed size",
+    "expanded size",
+    "per-entry size",
+    "compression ratio",
+    "path depth",
+  ]);
+});
+
+test("canonical finite defaults are exact and removal mutations reach execution", async () => {
+  const browserRoot = process.env.WEBSPACE_BROWSER_ROOT;
+  assert.ok(browserRoot, "WEBSPACE_BROWSER_ROOT is required");
+  const report = await auditCanonicalDefaultMutations({ browserRoot });
+  assert.deepEqual(report.removals, [
     "entry count",
     "compressed size",
     "expanded size",

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { deflateRawSync } from "node:zlib";
 import { pathToFileURL } from "node:url";
+import os from "node:os";
 import path from "node:path";
 
 const encoder = new TextEncoder();
@@ -281,4 +283,133 @@ export async function auditContainers({ browserRoot, validateSpec }) {
     }
   }
   return { positives: positives.map(({ kind }) => kind), negatives, mutations };
+}
+
+function defaultMutationCases() {
+  const ordinary = bundle("world");
+  const threeEntries = bundle("world", {
+    entries: [
+      { name: "manifest.json", bytes: encoder.encode(JSON.stringify(ordinary.manifest)) },
+      { name: "resources/world.js", bytes: encoder.encode("export default {};") },
+      { name: "resources/extra.js", bytes: encoder.encode("export {};") },
+    ],
+  });
+  const largeEntry = encoder.encode("x".repeat(2048));
+  const perEntry = bundle("world", { entryBytes: largeEntry });
+  const compressed = bundle("world", {
+    entryBytes: encoder.encode("x".repeat(4096)),
+    deflateEntry: true,
+  });
+  const deep = bundle("world", { entryPath: "a/b/c/d/world.js" });
+  const manifestSize = encoder.encode(JSON.stringify(ordinary.manifest)).byteLength;
+  const expandedTotal = manifestSize + encoder.encode("export default {};").byteLength;
+  const archiveThreshold = expandedTotal + 8;
+  assert.ok(ordinary.bytes.byteLength > archiveThreshold);
+  return [
+    {
+      name: "entry count",
+      fixture: threeEntries,
+      control: ["const DEFAULT_CONTAINER_ENTRIES = 4096;", "const DEFAULT_CONTAINER_ENTRIES = 2;"],
+      removed: ["const DEFAULT_CONTAINER_ENTRIES = 4096;", "const DEFAULT_CONTAINER_ENTRIES = 100000;"],
+    },
+    {
+      name: "compressed size",
+      fixture: ordinary,
+      control: [
+        "const containerLimit = finiteLimit(limits.containerBytes, DEFAULT_CONTAINER_BYTES);",
+        `const containerLimit = finiteLimit(limits.containerBytes, ${archiveThreshold});`,
+      ],
+      removed: [
+        "const containerLimit = finiteLimit(limits.containerBytes, DEFAULT_CONTAINER_BYTES);",
+        "const containerLimit = finiteLimit(limits.containerBytes, Number.MAX_SAFE_INTEGER);",
+      ],
+    },
+    {
+      name: "expanded size",
+      fixture: ordinary,
+      control: [
+        "const expandedLimit = finiteLimit(limits.expandedBytes, DEFAULT_CONTAINER_BYTES);",
+        `const expandedLimit = finiteLimit(limits.expandedBytes, ${expandedTotal - 1});`,
+      ],
+      removed: [
+        "const expandedLimit = finiteLimit(limits.expandedBytes, DEFAULT_CONTAINER_BYTES);",
+        "const expandedLimit = finiteLimit(limits.expandedBytes, Number.MAX_SAFE_INTEGER);",
+      ],
+    },
+    {
+      name: "per-entry size",
+      fixture: perEntry,
+      control: [
+        "const perEntryLimit = finiteLimit(limits.perEntryBytes, DEFAULT_RESOURCE_BYTES);",
+        "const perEntryLimit = finiteLimit(limits.perEntryBytes, 1024);",
+      ],
+      removed: [
+        "const perEntryLimit = finiteLimit(limits.perEntryBytes, DEFAULT_RESOURCE_BYTES);",
+        "const perEntryLimit = finiteLimit(limits.perEntryBytes, Number.MAX_SAFE_INTEGER);",
+      ],
+    },
+    {
+      name: "compression ratio",
+      fixture: compressed,
+      control: ["const DEFAULT_CONTAINER_COMPRESSION_RATIO = 1000;", "const DEFAULT_CONTAINER_COMPRESSION_RATIO = 2;"],
+      removed: ["const DEFAULT_CONTAINER_COMPRESSION_RATIO = 1000;", "const DEFAULT_CONTAINER_COMPRESSION_RATIO = Number.MAX_SAFE_INTEGER;"],
+    },
+    {
+      name: "path depth",
+      fixture: deep,
+      control: ["const DEFAULT_CONTAINER_PATH_DEPTH = 64;", "const DEFAULT_CONTAINER_PATH_DEPTH = 4;"],
+      removed: ["const DEFAULT_CONTAINER_PATH_DEPTH = 64;", "const DEFAULT_CONTAINER_PATH_DEPTH = Number.MAX_SAFE_INTEGER;"],
+    },
+  ];
+}
+
+function replaceRequired(source, [from, to], label) {
+  const occurrences = source.split(from).length - 1;
+  assert.ok(occurrences > 0, `${label}: Browser source mutation target must exist`);
+  return source.replaceAll(from, to);
+}
+
+async function runMutatedModule(tempRoot, source, label, fixture) {
+  const file = path.join(tempRoot, `${label.replaceAll(" ", "-")}.mjs`);
+  await writeFile(file, source);
+  const api = await import(`${pathToFileURL(file).href}?run=${Date.now()}`);
+  return runContainer(api, fixture);
+}
+
+export async function auditCanonicalDefaultMutations({ browserRoot }) {
+  const loaderPath = path.join(browserRoot, "client/js/ContentNavigator/WebspacePackageLoader.js");
+  const source = await readFile(loaderPath, "utf8");
+  const exactDefaults = new Map([
+    ["compressed and expanded bytes", "const DEFAULT_CONTAINER_BYTES = 256 * 1024 * 1024;"],
+    ["entry count", "const DEFAULT_CONTAINER_ENTRIES = 4096;"],
+    ["per-entry bytes", "const DEFAULT_RESOURCE_BYTES = 64 * 1024 * 1024;"],
+    ["compression ratio", "const DEFAULT_CONTAINER_COMPRESSION_RATIO = 1000;"],
+    ["path depth", "const DEFAULT_CONTAINER_PATH_DEPTH = 64;"],
+  ]);
+  for (const [name, declaration] of exactDefaults) {
+    assert.ok(source.includes(declaration), `${name} canonical finite default changed or disappeared`);
+  }
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "p1-container-mutations-"));
+  const results = [];
+  try {
+    for (const item of defaultMutationCases()) {
+      const controlSource = replaceRequired(source, item.control, `${item.name} control`);
+      const removedSource = replaceRequired(source, item.removed, `${item.name} removal`);
+      const control = await runMutatedModule(tempRoot, controlSource, `${item.name}-control`, item.fixture);
+      assert.ok(control.failure, `${item.name} default enforcement control must reject`);
+      assert.equal(control.runtimeCreated, 0, `${item.name} control must reject before runtime`);
+      assert.equal(control.executed, 0, `${item.name} control must reject before execution`);
+      const removed = await runMutatedModule(tempRoot, removedSource, `${item.name}-removed`, item.fixture);
+      assert.ifError(removed.failure);
+      assert.equal(removed.executed, 1, `${item.name} removal mutation must reach execution`);
+      results.push(item.name);
+    }
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+  return {
+    defaults: [...exactDefaults.keys()],
+    removals: results,
+  };
 }
