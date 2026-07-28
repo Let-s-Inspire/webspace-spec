@@ -97,3 +97,13 @@ test("later relay permission overrides default-use negation", () => {
     /relay packages without integrity pins cannot proceed under warning-only policy/,
   );
 });
+
+test("negation propagates across accepted-or-used coordination", () => {
+  const clarified = `${canonical}\nRelay packages missing their integrity pins must not be accepted or used after a visible warning.\n`;
+  assert.doesNotThrow(() => assertP1BDocumentationPolicy(clarified));
+});
+
+test("negation propagates across comma-coordinated load run and use", () => {
+  const clarified = `${canonical}\nRelay packages missing their integrity pins cannot be loaded, run, or used after a visible warning.\n`;
+  assert.doesNotThrow(() => assertP1BDocumentationPolicy(clarified));
+});

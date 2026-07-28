@@ -39,14 +39,27 @@ export function assertP1BDocumentationPolicy(source) {
   const warningOnlyRelaySentence = source
     .split(/(?<=[.!?])\s+|\n+/)
     .find((sentence) => {
-      const actions = sentence.matchAll(/\b(?:proceed|continue|load|run|use|used|accept(?:ed)?|allow(?:ed)?|permit(?:ted)?)\b/gi);
-      const hasUnnegatedAction = Array.from(actions).some((action) => {
+      const actions = Array.from(
+        sentence.matchAll(/\b(?:proceed|continue|load|loaded|run|use|used|accept(?:ed)?|allow(?:ed)?|permit(?:ted)?)\b/gi),
+      );
+      let previousAction;
+      let previousNegated = false;
+      const hasUnnegatedAction = actions.some((action) => {
         const actionPrefix = sentence.slice(0, action.index);
-        return !(
+        const directlyNegated =
           /\b(?:must|may|shall|should|can|is|are|was|were)\s+(?:not|never)\s+(?:be\s+)?$/i.test(actionPrefix) ||
           /\b(?:cannot|can't)\s+(?:be\s+)?$/i.test(actionPrefix) ||
-          /\bnever\s+(?:be\s+)?$/i.test(actionPrefix)
-        );
+          /\bnever\s+(?:be\s+)?$/i.test(actionPrefix);
+        const separator = previousAction
+          ? sentence.slice(previousAction.index + previousAction[0].length, action.index)
+          : "";
+        const inheritsCoordinatedNegation = previousAction &&
+          previousNegated &&
+          /^\s*(?:,\s*)?(?:(?:and|or)\s*)?$/i.test(separator);
+        const negated = directlyNegated || inheritsCoordinatedNegation;
+        previousAction = action;
+        previousNegated = negated;
+        return !negated;
       });
       return hasUnnegatedAction &&
         /relay(?:ed)?\s+packages?/i.test(sentence) &&
