@@ -48,6 +48,7 @@ export function assertP1BDocumentationPolicy(source) {
         const actionPrefix = sentence.slice(0, action.index);
         const directlyNegated =
           /\b(?:must|may|shall|should|can|is|are|was|were)\s+(?:not|never)\s+(?:be\s+)?$/i.test(actionPrefix) ||
+          /\b(?:must|may|shall|should|can|is|are|was|were)\s+neither\s+(?:be\s+)?$/i.test(actionPrefix) ||
           /\b(?:cannot|can't)\s+(?:be\s+)?$/i.test(actionPrefix) ||
           /\bnever\s+(?:be\s+)?$/i.test(actionPrefix);
         const separator = previousAction
@@ -55,7 +56,7 @@ export function assertP1BDocumentationPolicy(source) {
           : "";
         const inheritsCoordinatedNegation = previousAction &&
           previousNegated &&
-          /^\s*(?:,\s*)?(?:(?:and|or)\s*)?$/i.test(separator);
+          /^\s*(?:,\s*)?(?:(?:and|or|nor)\s*)?$/i.test(separator);
         const negated = directlyNegated || inheritsCoordinatedNegation;
         previousAction = action;
         previousNegated = negated;

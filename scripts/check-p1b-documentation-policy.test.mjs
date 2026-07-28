@@ -107,3 +107,13 @@ test("negation propagates across comma-coordinated load run and use", () => {
   const clarified = `${canonical}\nRelay packages missing their integrity pins cannot be loaded, run, or used after a visible warning.\n`;
   assert.doesNotThrow(() => assertP1BDocumentationPolicy(clarified));
 });
+
+test("not-nor coordination remains negated", () => {
+  const clarified = `${canonical}\nRelay packages missing their integrity pins must not be accepted nor used after a visible warning.\n`;
+  assert.doesNotThrow(() => assertP1BDocumentationPolicy(clarified));
+});
+
+test("neither-nor coordination remains negated", () => {
+  const clarified = `${canonical}\nRelay packages missing their integrity pins can neither be loaded nor used after a visible warning.\n`;
+  assert.doesNotThrow(() => assertP1BDocumentationPolicy(clarified));
+});
