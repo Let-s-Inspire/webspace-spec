@@ -10,4 +10,3 @@ const proposal = await readFile(
 );
 assertP1BDocumentationPolicy(proposal);
 console.log("PASS proposal 0005 explicit-relay documentation policy");
-
