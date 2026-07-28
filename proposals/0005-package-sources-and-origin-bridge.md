@@ -185,9 +185,12 @@ DIRECT
 BRIDGE
   ├─ success ──────────────────────────────> VALIDATE
   ├─ authentication-required ──────────────> AUTHENTICATE, retry BRIDGE
-  └─ transport-unavailable ────────────────> RELAY, public only
+  └─ transport-unavailable ────────────────> VISIBLE TYPED FAILURE
 
-RELAY
+VISITOR SELECTS "RETRY THROUGH RELAY" (public packages only)
+  └────────────────────────────────────────> RELAY
+
+EXPLICIT RELAY SOURCE
   ├─ success ──────────────────────────────> VALIDATE with relay indicator
   └─ unavailable ──────────────────────────> ABORT
 
@@ -196,7 +199,8 @@ VALIDATE
   └─ any content/security failure ─────────> ABORT
 ```
 
-Fallback is allowed only for transport availability:
+Automatic direct-to-bridge fallback is allowed only for transport,
+browser, or CORS availability:
 
 - CORS prevents reading a response;
 - connection or DNS failure;
@@ -204,7 +208,6 @@ Fallback is allowed only for transport availability:
 - helper not found;
 - bridge handshake timeout;
 - unsupported bridge protocol;
-- configured relay unavailable.
 
 Fallback is forbidden after:
 
@@ -222,6 +225,16 @@ This prevents induced failures from downgrading a package to a weaker source.
 Source fallback must not change package identity. Manifest identity, publisher
 evidence, canonical URL, expected package or manifest integrity, and verified
 bytes control grant lookup.
+
+Relay selection is not another automatic fallback step. After eligible direct
+and bridge transport failure, a public-package launch may display a typed
+failure and offer a visible **Retry through relay** action. The visitor must
+select that action before any relay request begins. That selection creates a
+new source which is credentialless, discloses the intermediary, remains bound
+to the exact package URL and version, and requires independently supplied
+manifest-root or whole-bundle integrity. Authentication denial and all
+content, schema, compatibility, integrity, authorization, capability, and
+execution failures remain terminal and cannot offer relay retry.
 
 ## 8. Bridge Discovery
 
@@ -537,7 +550,13 @@ integrity. Bridge filtering is defense in depth.
 
 ## 14. Server Relay
 
-The relay fallback is available for public packages only in experimental v0.
+Explicit visitor-selected relay acquisition is available for public packages
+only in experimental v0. It is never an automatic fallback from the publisher
+origin bridge. Before relay use, the Browser discloses the intermediary and
+privacy boundary. The relay source requires independently supplied
+manifest-root integrity for a loose package or whole-bundle integrity for a
+bundle.
+
 The Browser must not send to a third-party relay:
 
 - origin-session cookies;
@@ -550,7 +569,7 @@ The relay is read-only, SSRF-hardened, size- and time-limited, and restricted
 to package acquisition. It cannot grant capabilities or authenticate users.
 
 Relay use is visible because the intermediary can observe package requests,
-withhold content, return stale data, or modify unpinned bytes.
+withhold content, return stale data, or attempt to modify bytes.
 
 ## 15. Portal and Source Trust Indicators
 
@@ -582,11 +601,11 @@ Recommended indicators:
 | Direct | No warning or subtle direct indicator |
 | Publisher origin bridge | No warning or neutral hosted-bridge indicator |
 | Relay with independently pinned package integrity | Relay/privacy indicator |
-| Relay without independently pinned manifest or bundle integrity | Warning triangle |
 | Unavailable | Broken/unavailable indicator |
 
-The warning explains that an intermediary is supplying unverified package
-bytes and identifies the relay operator.
+The disclosure explains that an intermediary supplies the package bytes and
+identifies the relay operator. Missing independent package-root integrity
+prevents relay acquisition rather than weakening it to a warning-only mode.
 
 A pinned bundle hash or verified publisher signature prevents undetected
 modification but does not prevent relay observation, refusal, delay, or stale
@@ -781,7 +800,7 @@ Successful paths:
 - explicit helper;
 - general root helper with an allowed package root;
 - one-file HTML carrier;
-- public relay fallback;
+- explicit, disclosed public relay source selection;
 - origin-session authentication;
 - brokered-token authentication;
 - `.wso` through each applicable source;
