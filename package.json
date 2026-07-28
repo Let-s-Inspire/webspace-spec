@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node scripts/validate-schemas.mjs"
+    "test": "node scripts/validate-schemas.mjs",
+    "check:p1-cross-repo": "node scripts/check-p1-cross-repo-contract.mjs && node scripts/check-p1-container-contract.mjs",
+    "test:p1-cross-repo": "node --test scripts/check-p1-cross-repo-contract.test.mjs scripts/check-p1-container-contract.test.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

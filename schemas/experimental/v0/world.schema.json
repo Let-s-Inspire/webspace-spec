@@ -16,7 +16,9 @@
     "defaultEntrance"
   ],
   "properties": {
-    "$schema": { "type": "string" },
+    "$schema": {
+      "const": "https://webspacebrowser.com/schemas/experimental/v0/world.schema.json"
+    },
     "profile": {
       "const": "https://webspacebrowser.com/profiles/package/experimental-v0"
     },
