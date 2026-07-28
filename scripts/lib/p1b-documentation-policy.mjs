@@ -38,14 +38,22 @@ export function assertP1BDocumentationPolicy(source) {
   );
   const warningOnlyRelaySentence = source
     .split(/(?<=[.!?])\s+|\n+/)
-    .find((sentence) =>
-      /relay(?:ed)?\s+packages?/i.test(sentence) &&
-      /\bwarning\b/i.test(sentence) &&
-      /\b(?:proceed|continue|load|run|accept(?:ed)?|allow(?:ed)?)\b/i.test(sentence) &&
-      (
-        /\bunpinned\b/i.test(sentence) ||
-        /\b(?:without|missing|lacking)\b[^.!?\n]{0,100}\bintegrity\b[^.!?\n]{0,60}\bpins?\b/i.test(sentence)
-      ));
+    .find((sentence) => {
+      const action = /\b(?:proceed|continue|load|run|use|used|accept(?:ed)?|allow(?:ed)?|permit(?:ted)?)\b/i.exec(sentence);
+      if (!action) return false;
+      const actionPrefix = sentence.slice(0, action.index);
+      const actionIsNegated =
+        /\b(?:must|may|shall|should|can|is|are|was|were)\s+(?:not|never)\s+(?:be\s+)?$/i.test(actionPrefix) ||
+        /\b(?:cannot|can't)\s+(?:be\s+)?$/i.test(actionPrefix) ||
+        /\bnever\s+(?:be\s+)?$/i.test(actionPrefix);
+      return !actionIsNegated &&
+        /relay(?:ed)?\s+packages?/i.test(sentence) &&
+        /\bwarning\b/i.test(sentence) &&
+        (
+          /\bunpinned\b/i.test(sentence) ||
+          /\b(?:without|missing|lacking)\b[^.!?\n]{0,100}\bintegrity\b[^.!?\n]{0,60}\bpins?\b/i.test(sentence)
+        );
+    });
   assert.equal(
     warningOnlyRelaySentence,
     undefined,
