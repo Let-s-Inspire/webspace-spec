@@ -80,11 +80,11 @@ export function buildZip(entries) {
   return concat([...localParts, central, end]);
 }
 
-function sri(bytes) {
+export function sri(bytes) {
   return `sha256-${createHash("sha256").update(bytes).digest("base64")}`;
 }
 
-function manifest(kind, entryPath, entryBytes) {
+export function manifest(kind, entryPath, entryBytes) {
   const common = {
     $schema: `https://webspacebrowser.com/schemas/experimental/v0/${kind}.schema.json`,
     profile: "https://webspacebrowser.com/profiles/package/experimental-v0",
@@ -112,7 +112,7 @@ function manifest(kind, entryPath, entryBytes) {
       };
 }
 
-function bundle(kind, {
+export function bundle(kind, {
   entryPath = `resources/${kind}.js`,
   entryBytes = encoder.encode("export default {};"),
   entries,
