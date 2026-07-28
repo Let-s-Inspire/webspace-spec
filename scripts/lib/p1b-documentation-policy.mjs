@@ -36,4 +36,9 @@ export function assertP1BDocumentationPolicy(source) {
     /Unpinned relayed packages receive a visible warning/i,
     "warning-only unpinned relay acquisition is forbidden",
   );
+  assert.doesNotMatch(
+    source,
+    /unpinned\s+relay(?:ed)?\s+packages?[^.\n]{0,160}\b(?:proceed|continue|load|run|accept(?:ed)?|allow(?:ed)?)\b[^.\n]{0,160}\bwarning\b/i,
+    "unpinned relay packages cannot proceed under warning-only policy",
+  );
 }

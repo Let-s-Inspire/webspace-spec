@@ -44,3 +44,11 @@ test("warning-only unpinned relay acquisition is rejected", () => {
     /missing or mismatched relay integrity|warning-only unpinned relay/,
   );
 });
+
+test("semantically equivalent unpinned relay proceed warning is rejected", () => {
+  const mutated = `${canonical}\nUnpinned relay packages may proceed after a visible warning.\n`;
+  assert.throws(
+    () => assertP1BDocumentationPolicy(mutated),
+    /unpinned relay packages cannot proceed under warning-only policy/,
+  );
+});
