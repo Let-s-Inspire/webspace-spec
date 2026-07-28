@@ -36,9 +36,19 @@ export function assertP1BDocumentationPolicy(source) {
     /Unpinned relayed packages receive a visible warning/i,
     "warning-only unpinned relay acquisition is forbidden",
   );
-  assert.doesNotMatch(
-    source,
-    /unpinned\s+relay(?:ed)?\s+packages?[^.\n]{0,160}\b(?:proceed|continue|load|run|accept(?:ed)?|allow(?:ed)?)\b[^.\n]{0,160}\bwarning\b/i,
-    "unpinned relay packages cannot proceed under warning-only policy",
+  const warningOnlyRelaySentence = source
+    .split(/(?<=[.!?])\s+|\n+/)
+    .find((sentence) =>
+      /relay(?:ed)?\s+packages?/i.test(sentence) &&
+      /\bwarning\b/i.test(sentence) &&
+      /\b(?:proceed|continue|load|run|accept(?:ed)?|allow(?:ed)?)\b/i.test(sentence) &&
+      (
+        /\bunpinned\b/i.test(sentence) ||
+        /\b(?:without|missing|lacking)\b[^.!?\n]{0,100}\bintegrity\b[^.!?\n]{0,60}\bpins?\b/i.test(sentence)
+      ));
+  assert.equal(
+    warningOnlyRelaySentence,
+    undefined,
+    "relay packages without integrity pins cannot proceed under warning-only policy",
   );
 }

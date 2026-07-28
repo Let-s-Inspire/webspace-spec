@@ -49,6 +49,22 @@ test("semantically equivalent unpinned relay proceed warning is rejected", () =>
   const mutated = `${canonical}\nUnpinned relay packages may proceed after a visible warning.\n`;
   assert.throws(
     () => assertP1BDocumentationPolicy(mutated),
-    /unpinned relay packages cannot proceed under warning-only policy/,
+    /relay packages without integrity pins cannot proceed under warning-only policy/,
+  );
+});
+
+test("warning-first unpinned relay proceed language is rejected", () => {
+  const mutated = `${canonical}\nAfter a visible warning, unpinned relay packages may proceed.\n`;
+  assert.throws(
+    () => assertP1BDocumentationPolicy(mutated),
+    /relay packages without integrity pins cannot proceed under warning-only policy/,
+  );
+});
+
+test("missing-integrity-pin relay proceed language is rejected", () => {
+  const mutated = `${canonical}\nRelay packages without integrity pins may proceed after a visible warning.\n`;
+  assert.throws(
+    () => assertP1BDocumentationPolicy(mutated),
+    /relay packages without integrity pins cannot proceed under warning-only policy/,
   );
 });
