@@ -39,14 +39,16 @@ export function assertP1BDocumentationPolicy(source) {
   const warningOnlyRelaySentence = source
     .split(/(?<=[.!?])\s+|\n+/)
     .find((sentence) => {
-      const action = /\b(?:proceed|continue|load|run|use|used|accept(?:ed)?|allow(?:ed)?|permit(?:ted)?)\b/i.exec(sentence);
-      if (!action) return false;
-      const actionPrefix = sentence.slice(0, action.index);
-      const actionIsNegated =
-        /\b(?:must|may|shall|should|can|is|are|was|were)\s+(?:not|never)\s+(?:be\s+)?$/i.test(actionPrefix) ||
-        /\b(?:cannot|can't)\s+(?:be\s+)?$/i.test(actionPrefix) ||
-        /\bnever\s+(?:be\s+)?$/i.test(actionPrefix);
-      return !actionIsNegated &&
+      const actions = sentence.matchAll(/\b(?:proceed|continue|load|run|use|used|accept(?:ed)?|allow(?:ed)?|permit(?:ted)?)\b/gi);
+      const hasUnnegatedAction = Array.from(actions).some((action) => {
+        const actionPrefix = sentence.slice(0, action.index);
+        return !(
+          /\b(?:must|may|shall|should|can|is|are|was|were)\s+(?:not|never)\s+(?:be\s+)?$/i.test(actionPrefix) ||
+          /\b(?:cannot|can't)\s+(?:be\s+)?$/i.test(actionPrefix) ||
+          /\bnever\s+(?:be\s+)?$/i.test(actionPrefix)
+        );
+      });
+      return hasUnnegatedAction &&
         /relay(?:ed)?\s+packages?/i.test(sentence) &&
         /\bwarning\b/i.test(sentence) &&
         (

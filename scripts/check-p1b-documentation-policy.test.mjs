@@ -81,3 +81,19 @@ test("negated missing-integrity-pin relay use remains allowed", () => {
   const clarified = `${canonical}\nRelay packages missing their integrity pins must not be used after a visible warning.\n`;
   assert.doesNotThrow(() => assertP1BDocumentationPolicy(clarified));
 });
+
+test("later unnegated relay use overrides earlier ordinary-use negation", () => {
+  const mutated = `${canonical}\nRelay packages missing their integrity pins must not be used ordinarily, but may be used after a visible warning.\n`;
+  assert.throws(
+    () => assertP1BDocumentationPolicy(mutated),
+    /relay packages without integrity pins cannot proceed under warning-only policy/,
+  );
+});
+
+test("later relay permission overrides default-use negation", () => {
+  const mutated = `${canonical}\nRelay packages missing their integrity pins cannot be used by default but are permitted after a visible warning.\n`;
+  assert.throws(
+    () => assertP1BDocumentationPolicy(mutated),
+    /relay packages without integrity pins cannot proceed under warning-only policy/,
+  );
+});
