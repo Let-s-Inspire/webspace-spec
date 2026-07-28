@@ -16,6 +16,11 @@ export function assertP1BDocumentationPolicy(source) {
     /new source which is credentialless[\s\S]*requires independently supplied[\s\S]*integrity/,
     "explicit relay source must be credentialless and independently integrity-pinned",
   );
+  assert.match(
+    source,
+    /A missing or mismatched package-root pin fails relay acquisition before[\s\S]*runtime creation/,
+    "missing or mismatched relay integrity must fail before runtime",
+  );
   assert.doesNotMatch(
     source,
     /BRIDGE[\s\S]{0,300}transport-unavailable [^\n]*> RELAY/,
@@ -25,5 +30,10 @@ export function assertP1BDocumentationPolicy(source) {
     source,
     /webspacerelay\.html/i,
     "webspacerelay.html must not be canonical bridge discovery",
+  );
+  assert.doesNotMatch(
+    source,
+    /Unpinned relayed packages receive a visible warning/i,
+    "warning-only unpinned relay acquisition is forbidden",
   );
 }

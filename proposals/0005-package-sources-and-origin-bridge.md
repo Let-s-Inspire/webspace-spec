@@ -591,8 +591,8 @@ preference.
 Integrity is independently pinned only when the expected digest comes from a
 trusted referring package, verified publisher metadata, a user bookmark,
 or another source outside the destination bytes being checked. A digest
-declared only by the destination's own unverified manifest cannot remove the
-relay warning because a relay could replace both.
+declared only by the destination's own unverified manifest cannot satisfy the
+relay integrity gate because a relay could replace both.
 
 Recommended indicators:
 
@@ -777,8 +777,11 @@ tokens. Relay fallback is disabled for authenticated packages.
 
 ### Relay manipulation
 
-Pinned bundle integrity or publisher signatures detect changed bytes.
-Unpinned relayed packages receive a visible warning.
+Independently supplied manifest-root or whole-bundle integrity detects changed
+bytes. A missing or mismatched package-root pin fails relay acquisition before
+entry acquisition, capability negotiation, or runtime creation. Disclosure of
+the intermediary is required for privacy transparency but never substitutes
+for integrity.
 
 ### Supply chain
 
@@ -882,7 +885,8 @@ Proposal 0005 is ready for implementation testing when:
 - exact origin, nonce, port, package root, timeout, and close rules exist;
 - public, origin-session, and brokered-token modes are explicit;
 - authenticated packages never silently use an untrusted relay;
-- relay use and unpinned intermediary risk are visible;
+- relay use and intermediary privacy risk are visible, and independent
+  package-root integrity is mandatory;
 - one-file HTML carries one opaque ordinary `.wsp` or `.wso`;
 - finite limits and cleanup are explicit;
 - a native Browser can omit the bridge without changing package semantics.

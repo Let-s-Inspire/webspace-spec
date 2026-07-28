@@ -33,3 +33,14 @@ test("legacy webspacerelay.html discovery is rejected", () => {
   assert.throws(() => assertP1BDocumentationPolicy(mutated), /webspacerelay\.html/);
 });
 
+test("warning-only unpinned relay acquisition is rejected", () => {
+  const mutated = canonical.replace(
+    /Independently supplied manifest-root or whole-bundle integrity detects changed\nbytes\. A missing or mismatched package-root pin fails relay acquisition before\nentry acquisition, capability negotiation, or runtime creation\. Disclosure of\nthe intermediary is required for privacy transparency but never substitutes\nfor integrity\./,
+    "Pinned bundle integrity or publisher signatures detect changed bytes.\nUnpinned relayed packages receive a visible warning.",
+  );
+  assert.notEqual(mutated, canonical);
+  assert.throws(
+    () => assertP1BDocumentationPolicy(mutated),
+    /missing or mismatched relay integrity|warning-only unpinned relay/,
+  );
+});
