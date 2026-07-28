@@ -1,5 +1,39 @@
 import assert from "node:assert/strict";
 
+function splitMarkdownTableRow(row) {
+  const cells = [];
+  let cell = "";
+  let codeFenceLength = 0;
+  for (let index = 0; index < row.length;) {
+    if (row[index] === "\\") {
+      cell += row[index];
+      if (index + 1 < row.length) cell += row[index + 1];
+      index += 2;
+      continue;
+    }
+    if (row[index] === "`") {
+      let end = index + 1;
+      while (row[end] === "`") end++;
+      const run = row.slice(index, end);
+      if (codeFenceLength === 0) codeFenceLength = run.length;
+      else if (codeFenceLength === run.length) codeFenceLength = 0;
+      cell += run;
+      index = end;
+      continue;
+    }
+    if (row[index] === "|" && codeFenceLength === 0) {
+      cells.push(cell.trim());
+      cell = "";
+      index++;
+      continue;
+    }
+    cell += row[index++];
+  }
+  cells.push(cell.trim());
+  return cells.filter((value, index) =>
+    value || (index > 0 && index < cells.length - 1));
+}
+
 function normalizeMarkdownProse(source) {
   const lines = source.replace(/\r\n?/g, "\n").split("\n");
   const tableRows = new Set();
@@ -31,7 +65,12 @@ function normalizeMarkdownProse(source) {
       context = null;
       continue;
     }
-    if (tableRows.has(index) || /^\s*(?:#{1,6}\s|\|)/.test(line)) {
+    if (tableRows.has(index)) {
+      output.push(...splitMarkdownTableRow(line));
+      context = null;
+      continue;
+    }
+    if (/^\s*(?:#{1,6}\s|\|)/.test(line)) {
       output.push(line);
       context = null;
       continue;

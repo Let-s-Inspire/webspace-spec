@@ -146,3 +146,24 @@ test("pipe-less Markdown table rows remain separate policy boundaries", () => {
   const table = `${canonical}\n\nRelay packages missing their integrity pins may be used | Notes\n--- | ---\nPinned packages | after a visible warning.\n`;
   assert.doesNotThrow(() => assertP1BDocumentationPolicy(table));
 });
+
+test("same-row pipe-less Markdown table cells remain separate policy boundaries", () => {
+  const table = `${canonical}\n\nRelay packages missing their integrity pins | may be used after a visible warning.\n--- | ---\nPinned packages | Notes\n`;
+  assert.doesNotThrow(() => assertP1BDocumentationPolicy(table));
+});
+
+test("escaped table pipe remains inside one policy cell", () => {
+  const table = `${canonical}\n\nRelay packages missing their integrity pins \\| may be used after a visible warning. | Notes\n--- | ---\nPinned packages | Notes\n`;
+  assert.throws(
+    () => assertP1BDocumentationPolicy(table),
+    /relay packages without integrity pins cannot proceed under warning-only policy/,
+  );
+});
+
+test("code-span table pipe remains inside one policy cell", () => {
+  const table = `${canonical}\n\nRelay packages missing their integrity pins \`|\` may be used after a visible warning. | Notes\n--- | ---\nPinned packages | Notes\n`;
+  assert.throws(
+    () => assertP1BDocumentationPolicy(table),
+    /relay packages without integrity pins cannot proceed under warning-only policy/,
+  );
+});
