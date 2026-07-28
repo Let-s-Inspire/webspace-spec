@@ -1,10 +1,21 @@
 import assert from "node:assert/strict";
 
 function normalizeMarkdownProse(source) {
+  const lines = source.replace(/\r\n?/g, "\n").split("\n");
+  const tableRows = new Set();
+  for (let index = 0; index < lines.length; index++) {
+    if (!/^\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[index])) continue;
+    if (index > 0 && lines[index - 1].includes("|")) tableRows.add(index - 1);
+    tableRows.add(index);
+    for (let row = index + 1; row < lines.length && lines[row].trim() && lines[row].includes("|"); row++) {
+      tableRows.add(row);
+    }
+  }
   const output = [];
   let context = null;
   let inFence = false;
-  for (const line of source.replace(/\r\n?/g, "\n").split("\n")) {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
     if (/^\s*(?:```|~~~)/.test(line)) {
       output.push(line);
       inFence = !inFence;
@@ -20,7 +31,7 @@ function normalizeMarkdownProse(source) {
       context = null;
       continue;
     }
-    if (/^\s*(?:#{1,6}\s|\|)/.test(line)) {
+    if (tableRows.has(index) || /^\s*(?:#{1,6}\s|\|)/.test(line)) {
       output.push(line);
       context = null;
       continue;

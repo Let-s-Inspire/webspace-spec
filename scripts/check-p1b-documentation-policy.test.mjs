@@ -141,3 +141,8 @@ test("soft-wrapped blockquote relay permission is rejected", () => {
     /relay packages without integrity pins cannot proceed under warning-only policy/,
   );
 });
+
+test("pipe-less Markdown table rows remain separate policy boundaries", () => {
+  const table = `${canonical}\n\nRelay packages missing their integrity pins may be used | Notes\n--- | ---\nPinned packages | after a visible warning.\n`;
+  assert.doesNotThrow(() => assertP1BDocumentationPolicy(table));
+});
