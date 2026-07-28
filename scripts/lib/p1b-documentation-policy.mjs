@@ -2,16 +2,55 @@ import assert from "node:assert/strict";
 
 function normalizeMarkdownProse(source) {
   const output = [];
-  let previousWasProse = false;
+  let context = null;
+  let inFence = false;
   for (const line of source.replace(/\r\n?/g, "\n").split("\n")) {
-    const blank = !line.trim();
-    const structural = /^\s*(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>|```|~~~|\|)/.test(line);
-    if (!blank && !structural && previousWasProse) {
+    if (/^\s*(?:```|~~~)/.test(line)) {
+      output.push(line);
+      inFence = !inFence;
+      context = null;
+      continue;
+    }
+    if (inFence) {
+      output.push(line);
+      continue;
+    }
+    if (!line.trim()) {
+      output.push("");
+      context = null;
+      continue;
+    }
+    if (/^\s*(?:#{1,6}\s|\|)/.test(line)) {
+      output.push(line);
+      context = null;
+      continue;
+    }
+    const listItem = /^(\s*)(?:[-*+]|\d+[.)])\s+(.*)$/.exec(line);
+    if (listItem) {
+      output.push(listItem[2]);
+      context = { type: "list", indent: listItem[1].length };
+      continue;
+    }
+    if (context?.type === "list" && /^\s+/.test(line)) {
+      output[output.length - 1] += ` ${line.trim()}`;
+      continue;
+    }
+    const quote = /^\s*>\s?(.*)$/.exec(line);
+    if (quote) {
+      if (context?.type === "quote") {
+        output[output.length - 1] += ` ${quote[1].trim()}`;
+      } else {
+        output.push(quote[1]);
+      }
+      context = { type: "quote" };
+      continue;
+    }
+    if (context?.type === "prose") {
       output[output.length - 1] += ` ${line.trim()}`;
     } else {
       output.push(line);
     }
-    previousWasProse = !blank && !structural;
+    context = { type: "prose" };
   }
   return output.join("\n");
 }

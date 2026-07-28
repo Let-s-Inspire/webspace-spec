@@ -125,3 +125,19 @@ test("soft-wrapped warning-only relay permission is rejected", () => {
     /relay packages without integrity pins cannot proceed under warning-only policy/,
   );
 });
+
+test("soft-wrapped list-item relay permission is rejected", () => {
+  const mutated = `${canonical}\n- Relay packages missing their integrity pins may be used\n  after a visible warning.\n`;
+  assert.throws(
+    () => assertP1BDocumentationPolicy(mutated),
+    /relay packages without integrity pins cannot proceed under warning-only policy/,
+  );
+});
+
+test("soft-wrapped blockquote relay permission is rejected", () => {
+  const mutated = `${canonical}\n> Relay packages missing their integrity pins may be used\n> after a visible warning.\n`;
+  assert.throws(
+    () => assertP1BDocumentationPolicy(mutated),
+    /relay packages without integrity pins cannot proceed under warning-only policy/,
+  );
+});
