@@ -1,0 +1,17 @@
+[
+  { "name": "valid loose world", "base": "world", "valid": true },
+  { "name": "valid loose object", "base": "object", "valid": true },
+  { "name": "world unknown field", "base": "world", "valid": false, "set": ["/unexpected", true] },
+  { "name": "object unknown field", "base": "object", "valid": false, "set": ["/unexpected", true] },
+  { "name": "world schema identifies object", "base": "world", "valid": false, "set": ["/$schema", "https://webspacebrowser.com/schemas/experimental/v0/object.schema.json"] },
+  { "name": "object schema identifies world", "base": "object", "valid": false, "set": ["/$schema", "https://webspacebrowser.com/schemas/experimental/v0/world.schema.json"] },
+  { "name": "future schema version", "base": "world", "valid": false, "set": ["/$schema", "https://webspacebrowser.com/schemas/experimental/v1/world.schema.json"] },
+  { "name": "future profile version", "base": "world", "valid": false, "set": ["/profile", "https://webspacebrowser.com/profiles/package/experimental-v1"] },
+  { "name": "malformed package version", "base": "world", "valid": false, "set": ["/version", "next"] },
+  { "name": "world loaded as object kind", "base": "world", "valid": false, "set": ["/kind", "object"] },
+  { "name": "object loaded as world kind", "base": "object", "valid": false, "set": ["/kind", "world"] },
+  { "name": "world traversal path", "base": "world", "valid": false, "set": ["/entry/module", "package:/resources/../escape.js"] },
+  { "name": "object empty path segment", "base": "object", "valid": false, "set": ["/entry/module", "package:/resources//entry.js"] },
+  { "name": "prototype pollution shaped __proto__", "base": "world", "valid": false, "own": ["__proto__", { "polluted": true }] },
+  { "name": "prototype pollution shaped constructor", "base": "object", "valid": false, "own": ["constructor", { "prototype": { "polluted": true } }] }
+]

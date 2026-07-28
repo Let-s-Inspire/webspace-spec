@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node scripts/validate-schemas.mjs"
+    "test": "node scripts/validate-schemas.mjs",
+    "check:p1-browser-baseline": "node scripts/check-p1-browser-baseline.mjs",
+    "check:p1-cross-repo": "npm run check:p1-browser-baseline && node scripts/check-p1-cross-repo-contract.mjs && node scripts/check-p1-container-contract.mjs && node scripts/check-p1-logical-equivalence.mjs && node scripts/check-p1-html-carrier.mjs && node scripts/check-p1-carrier-connector.mjs",
+    "test:p1-cross-repo": "npm run check:p1-browser-baseline && node --test scripts/check-p1-cross-repo-contract.test.mjs scripts/check-p1-container-contract.test.mjs scripts/check-p1-logical-equivalence.test.mjs scripts/check-p1-html-carrier.test.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
