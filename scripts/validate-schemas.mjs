@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createPublicKey, verify } from "node:crypto";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
+import { localSessionSemanticErrors } from "./local-session-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const schemaDir = path.join(root, "schemas", "experimental", "v0");
@@ -120,6 +121,7 @@ function validateWorldSemantics(manifest) {
   for (const id of duplicates(manifest.objects)) {
     errors.push(`objects contains duplicate id ${JSON.stringify(id)}`);
   }
+  errors.push(...localSessionSemanticErrors(manifest));
   return errors;
 }
 
