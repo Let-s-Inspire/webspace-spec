@@ -22,6 +22,11 @@ A world that requires non-networked execution MUST declare:
 `session` is optional for backward compatibility. When it is absent, the
 experimental-v0 profile retains its existing session behavior: absence MUST NOT
 be interpreted as either a local guarantee or a request to create networking.
+The policy lattice has two resolution states: `profile-default` and `local`.
+`local` is strictly more restrictive than `profile-default` for
+multiplayer/session behavior. Omission is the only representation of
+`profile-default` in world and host request input; no explicit wire value for it
+is defined. Unknown explicit values MUST fail closed.
 
 The `session` object is closed. An unknown mode, malformed value, or unknown
 member MUST be rejected before package execution. A local declaration combined
@@ -58,7 +63,9 @@ world declaration, host request, and Browser policy. Browser policy is
 authoritative and MUST fail closed. A host or Browser MAY narrow an undeclared
 world to local execution. Neither a host nor package code may weaken an explicit
 world local declaration. Package code MUST NOT escalate, replace, or renegotiate
-the effective local policy.
+the effective local policy. Runtime package code is not a policy input, and a
+worker or package message MUST NOT be interpreted as a session-policy request,
+including a request for `local`.
 
 If any required policy input is unknown, malformed, contradictory, or cannot be
 enforced deterministically, loading MUST fail before multiplayer/session side
@@ -74,6 +81,7 @@ Legacy manifests omit `session`. Conflicting and invalid:
 
 A conforming validator MUST accept the exact local declaration and legacy
 manifests without the field; MUST reject unknown, malformed, extended, and
-authority-conflicting declarations; and MUST test that host and package requests
-cannot broaden explicit local policy. Schema acceptance alone does not establish
-runtime conformance.
+authority-conflicting declarations; MUST test that a host request cannot broaden
+explicit local policy; and MUST test that runtime package policy negotiation is
+unavailable for every value. Schema acceptance alone does not establish runtime
+conformance.

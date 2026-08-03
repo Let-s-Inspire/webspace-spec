@@ -9,6 +9,8 @@ export const requiredProposalAnchors = [
   "Multiplayer/session networking", "Integrity-checked acquisition",
   "Browser-owned identity-provider traffic", "Trusted host services",
   "Arbitrary package-originated network access", "most restrictive intersection",
+  "profile-default", "strictly more restrictive", "Omission is the only representation",
+  "Runtime package code is not a policy input",
   "Neither a host nor package code may weaken", "fail closed",
   "MUST NOT silently fall back to networked execution",
 ];
