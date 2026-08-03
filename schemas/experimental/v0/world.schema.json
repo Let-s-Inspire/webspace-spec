@@ -83,6 +83,14 @@
         }
       }
     },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "const": "local" }
+      }
+    },
     "entrances": {
       "type": "array",
       "minItems": 1,

@@ -209,6 +209,13 @@ Unsupported required features reject the package before execution. Unsupported
 optional features are exposed through negotiation and must not cause implicit
 privilege escalation.
 
+### 8.1 Local session declaration
+
+A world may require non-networked multiplayer-session execution with the closed
+declaration `session: { "mode": "local" }`. Its normative semantics, authority
+composition, network-category separation, compatibility behavior, and conflict
+rules are defined by [0008](0008-local-session-declaration.md).
+
 ## 9. Capability Requests
 
 `capabilities` contains requests, never grants. Each request declares:

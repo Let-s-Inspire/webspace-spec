@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node scripts/validate-schemas.mjs",
+    "test": "node scripts/validate-schemas.mjs && npm run test:local-session-declaration && npm run check:local-session-declaration",
+    "check:local-session-declaration": "node scripts/check-local-session-declaration.mjs",
+    "test:local-session-declaration": "node --test scripts/check-local-session-declaration.test.mjs",
     "check:p1-browser-baseline": "node scripts/check-p1-browser-baseline.mjs",
     "check:p1b-documentation-policy": "node scripts/check-p1b-documentation-policy.mjs",
     "check:p1-cross-repo": "npm run check:p1-browser-baseline && npm run check:p1b-documentation-policy && node scripts/check-p1-cross-repo-contract.mjs && node scripts/check-p1-container-contract.mjs && node scripts/check-p1-logical-equivalence.mjs && node scripts/check-p1-html-carrier.mjs && node scripts/check-p1-carrier-connector.mjs && node scripts/check-p1b-source-boundary-mutations.mjs",

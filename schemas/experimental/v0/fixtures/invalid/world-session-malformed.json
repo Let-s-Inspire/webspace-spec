@@ -1,0 +1,13 @@
+{
+  "$schema": "https://webspacebrowser.com/schemas/experimental/v0/world.schema.json",
+  "profile": "https://webspacebrowser.com/profiles/package/experimental-v0",
+  "kind": "world",
+  "id": "com.example.malformed-session",
+  "version": "0.1.0",
+  "metadata": { "name": "Malformed session" },
+  "entry": { "module": "package:/world.js", "integrity": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" },
+  "presentation": { "backgroundColor": "#000000" },
+  "session": "local",
+  "entrances": [{ "id": "main", "transform": { "position": [0, 0, 0], "orientation": [0, 0, 0, 1] } }],
+  "defaultEntrance": "main"
+}
