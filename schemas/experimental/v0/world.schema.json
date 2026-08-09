@@ -80,6 +80,32 @@
       "properties": {
         "backgroundColor": {
           "$ref": "package.schema.json#/$defs/color"
+        },
+        "composition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["frame", "occupancy"],
+          "properties": {
+            "frame": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["center", "width", "height"],
+              "properties": {
+                "center": { "$ref": "package.schema.json#/$defs/vector3" },
+                "width": { "type": "number", "exclusiveMinimum": 0 },
+                "height": { "type": "number", "exclusiveMinimum": 0 }
+              }
+            },
+            "occupancy": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["width", "height"],
+              "properties": {
+                "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+                "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+              }
+            }
+          }
         }
       }
     },

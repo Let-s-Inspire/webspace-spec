@@ -1,0 +1,31 @@
+{
+  "$schema": "https://webspacebrowser.com/schemas/experimental/v0/world.schema.json",
+  "profile": "https://webspacebrowser.com/profiles/package/experimental-v0",
+  "kind": "world",
+  "id": "com.example.composition-framing-world",
+  "version": "0.1.0",
+  "metadata": {
+    "name": "Composition Framing World"
+  },
+  "entry": {
+    "module": "package:/resources/world.js",
+    "integrity": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  },
+  "presentation": {
+    "backgroundColor": "#ffffff",
+    "composition": {
+      "frame": { "center": [0, 1.79, -3.78], "width": 5.2, "height": 3.53 },
+      "occupancy": { "width": 0.94, "height": 0.82 }
+    }
+  },
+  "entrances": [
+    {
+      "id": "main",
+      "transform": {
+        "position": [0, 1.7, 0],
+        "orientation": [0, 0, 0, 1]
+      }
+    }
+  ],
+  "defaultEntrance": "main"
+}
