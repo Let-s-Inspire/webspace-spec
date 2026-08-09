@@ -16,3 +16,4 @@ Current proposals:
 - [0006: Runtime Lifecycle and Capability API](0006-runtime-lifecycle-and-capabilities.md)
 - [0007: Interaction and Input Contract](0007-interaction-and-input-contract.md)
 - [0008: Local Session Declaration](0008-local-session-declaration.md)
+- [0009: Content Runtime Resource Resolution](0009-content-runtime-resource-resolution.md)
