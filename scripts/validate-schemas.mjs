@@ -106,6 +106,43 @@ function validateWorldSemantics(manifest) {
       );
     }
   }
+  const navMesh = manifest.navigation?.navMesh;
+  const navMeshEdges = new Map();
+  for (const [polygonIndex, polygon] of (navMesh?.polygons ?? []).entries()) {
+    if (polygon.some((vertexIndex) => vertexIndex >= navMesh.vertices.length)) {
+      errors.push(`navigation.navMesh.polygons[${polygonIndex}] references an unknown vertex`);
+      continue;
+    }
+
+    const points = polygon.map((vertexIndex) => navMesh.vertices[vertexIndex]);
+    let winding = 0;
+    let valid = true;
+    for (let index = 0; index < points.length; index += 1) {
+      const previous = points[(index + points.length - 1) % points.length];
+      const current = points[index];
+      const next = points[(index + 1) % points.length];
+      const cross =
+        (current[0] - previous[0]) * (next[2] - current[2]) -
+        (current[2] - previous[2]) * (next[0] - current[0]);
+      const sign = Math.sign(cross);
+      if (sign === 0 || (winding !== 0 && sign !== winding)) valid = false;
+      if (sign !== 0) winding = sign;
+    }
+    if (!valid || winding === 0) {
+      errors.push(`navigation.navMesh.polygons[${polygonIndex}] must be strictly convex in X/Z`);
+    }
+    for (let index = 0; index < polygon.length; index += 1) {
+      const endpoints = [polygon[index], polygon[(index + 1) % polygon.length]];
+      endpoints.sort((left, right) => left - right);
+      const edge = endpoints.join(":");
+      navMeshEdges.set(edge, (navMeshEdges.get(edge) ?? 0) + 1);
+    }
+  }
+  for (const [edge, uses] of navMeshEdges) {
+    if (uses > 2) {
+      errors.push(`navigation.navMesh edge ${edge} is non-manifold (${uses} uses)`);
+    }
+  }
   for (const entrance of manifest.entrances) {
     if (entrance.zone !== undefined && !zones.has(entrance.zone)) {
       errors.push(`entrance ${JSON.stringify(entrance.id)} references an unknown zone`);

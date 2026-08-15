@@ -1,0 +1,29 @@
+{
+  "$schema": "https://webspacebrowser.com/schemas/experimental/v0/world.schema.json",
+  "profile": "https://webspacebrowser.com/profiles/package/experimental-v0",
+  "kind": "world",
+  "id": "com.example.non-manifold-navigation-world",
+  "version": "0.1.0",
+  "metadata": { "name": "Non-manifold navigation world" },
+  "entry": {
+    "module": "package:/resources/world.js",
+    "integrity": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  },
+  "presentation": { "backgroundColor": "#87CEEB" },
+  "entrances": [
+    {
+      "id": "main",
+      "transform": {
+        "position": [0, 1.7, 0],
+        "orientation": [0, 0, 0, 1]
+      }
+    }
+  ],
+  "defaultEntrance": "main",
+  "navigation": {
+    "navMesh": {
+      "vertices": [[-1, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 0, 2]],
+      "polygons": [[0, 1, 2], [1, 0, 3], [0, 1, 4]]
+    }
+  }
+}
