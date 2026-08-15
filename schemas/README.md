@@ -6,6 +6,8 @@ The first implementation profile is available under `experimental/v0/`:
 
 - `package.schema.json` - shared definitions used by both package roles;
 - `world.schema.json` - experimental loose `.wsp.json` manifest;
+  its optional `navigation.navMesh` member declares flat walkable geometry as
+  described by proposal 0010;
 - `object.schema.json` - experimental loose `.wso.json` manifest;
 - `origin-bridge-message.schema.json` - experimental origin-bridge control
   messages;
